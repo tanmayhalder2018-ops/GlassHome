@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ChordSathi</title>
+<meta name="theme-color" content="#0b0d17">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChordSathi">
 <meta name="description" content="Free, private chord detection for any song or live instrument. Runs fully in your browser.">
 <style>
 :root{
@@ -47,7 +55,12 @@ select{background:var(--bg2);color:var(--text);border:1px solid var(--line);bord
 .next{color:var(--muted);margin-top:8px;font-size:15px}
 .next b{color:var(--text);font-size:20px}
 .notes{color:var(--accent2);font-size:13px;margin-top:6px;min-height:20px}
-.diagram svg{display:block}
+.diagram{display:flex;flex-direction:column;align-items:center;gap:10px}
+.diagram svg{display:block;max-width:100%;height:auto}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{background:transparent;border:0;color:var(--muted);padding:7px 12px;font-weight:600;cursor:pointer}
+.seg button.on{background:linear-gradient(135deg,rgba(124,108,255,.5),rgba(34,211,238,.3));color:var(--text)}
+#installBtn{margin-left:auto}
 .seek{width:100%;accent-color:var(--accent)}
 .time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
 .controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px}
@@ -85,8 +98,15 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px}
       <h1>ChordSathi</h1>
       <div class="tag">Free chord finder · works offline in your browser · nothing is uploaded</div>
     </div>
+    <button class="btn sm hidden" id="installBtn">⬇ Install app</button>
   </header>
 
+  <div class="row" style="margin-bottom:12px;justify-content:flex-end">
+    <span class="muted" style="font-size:13px">Show chords for</span>
+    <div class="seg" id="instSeg">
+      <button data-inst="guitar">🎸 Guitar</button><button data-inst="piano">🎹 Piano</button><button data-inst="both">Both</button>
+    </div>
+  </div>
   <div class="tabs">
     <button class="tab active" data-tab="song">🎵 Song file</button>
     <button class="tab" data-tab="live">🎤 Live (mic)</button>
@@ -420,6 +440,33 @@ function diagramSVG(root,qid,size=1){
   return s+`</svg>`;
 }
 
+function pianoSVG(root,ivs){
+  if(root<0) return '';
+  const notes=new Set(ivs.map(iv=>root+iv)); // semitones from C of first octave (0..22)
+  const WW=20,WH=78,BW=12,BH=48,octs=2,W=WW*7*octs+2;
+  const WHITE=[0,2,4,5,7,9,11], BLACK={1:1,3:2,6:4,8:5,10:6};
+  let s=`<svg width="${W}" height="${WH+2}" viewBox="0 0 ${W} ${WH+2}" role="img" aria-label="Piano diagram">`;
+  for(let o=0;o<octs;o++) WHITE.forEach((pc,i)=>{
+    const n=o*12+pc, x=1+(o*7+i)*WW, on=notes.has(n), isRoot=n===root;
+    s+=`<rect x="${x}" y="1" width="${WW-1}" height="${WH}" rx="3" fill="${isRoot?'#7c6cff':on?'#22d3ee':'#eef0ff'}" stroke="#0b0d17"/>`;
+    if(on) s+=`<text x="${x+WW/2-0.5}" y="${WH-7}" font-size="9" font-weight="700" text-anchor="middle" fill="#0b0d17">${noteName(n)}</text>`;
+  });
+  for(let o=0;o<octs;o++) for(const pc in BLACK){
+    const n=o*12+(+pc), x=1+(o*7+BLACK[pc])*WW-BW/2-0.5, on=notes.has(n), isRoot=n===root;
+    s+=`<rect x="${x}" y="1" width="${BW}" height="${BH}" rx="2" fill="${isRoot?'#7c6cff':on?'#22d3ee':'#1b1f33'}" stroke="#0b0d17"/>`;
+    if(on) s+=`<text x="${x+BW/2}" y="${BH-6}" font-size="7" font-weight="700" text-anchor="middle" fill="#0b0d17">${noteName(n)}</text>`;
+  }
+  return s+'</svg>';
+}
+let instrument='guitar';
+try{ instrument=localStorage.getItem('cs-instrument')||'guitar'; }catch(e){}
+function instrumentHTML(pc,qid,ivs){
+  let h='';
+  if(instrument!=='piano') h+=diagramSVG(pc,qid);
+  if(instrument!=='guitar') h+=pianoSVG(pc,ivs);
+  return h;
+}
+
 /* ================= Display helpers ================= */
 let transpose=0, capo=0;
 function chordLabel(c,simple){
@@ -434,8 +481,8 @@ function chordNotes(c){
 }
 function chordDiagram(c,simple){
   if(c.root<0) return '';
-  const q=QUALITIES[c.q]; const qid=simple?q.simple:q.id;
-  return diagramSVG(((c.root+transpose-capo)%12+12)%12,qid);
+  const q=QUALITIES[c.q], qi=simple?QUALITIES.findIndex(x=>x.id===q.simple):c.q;
+  return instrumentHTML(((c.root+transpose-capo)%12+12)%12,QUALITIES[qi].id,QUALITIES[qi].iv);
 }
 const fmt=t=>{ t=Math.max(0,t|0); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
 const $=id=>document.getElementById(id);
@@ -616,6 +663,18 @@ function wavBlob(samples,sr){
   for(let i=0;i<samples.length;i++){ const s=Math.max(-1,Math.min(1,samples[i])); v.setInt16(44+i*2,s<0?s*0x8000:s*0x7fff,true); }
   return new Blob([b],{type:'audio/wav'});
 }
+
+/* ================= Instrument switch, install, offline ================= */
+function paintInst(){ document.querySelectorAll('#instSeg button').forEach(b=>b.classList.toggle('on',b.dataset.inst===instrument)); }
+paintInst();
+$('instSeg').onclick=e=>{ const b=e.target.closest('button'); if(!b) return;
+  instrument=b.dataset.inst; try{ localStorage.setItem('cs-instrument',instrument); }catch(_){}
+  paintInst(); tick(true); if(live) live.shown=null; };
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredInstall=e; $('installBtn').classList.remove('hidden'); });
+$('installBtn').onclick=async()=>{ if(!deferredInstall) return; deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; $('installBtn').classList.add('hidden'); };
+window.addEventListener('appinstalled',()=>$('installBtn').classList.add('hidden'));
+if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 /* ================= Live mode ================= */
 let live=null;
