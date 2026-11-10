@@ -12,7 +12,7 @@ A free chord finder that runs entirely in the browser. Nothing is uploaded.
 - **Live mode**: detect chords from the microphone in real time, with a pitch-class (chroma) meter and chord history
 
 ## Install on your phone (PWA)
-1. Merge this branch into `main`.
+1. Merge this branch into the default branch.
 2. In the repo on GitHub, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**.
 3. The *Deploy ChordSathi to GitHub Pages* workflow publishes the app at
    `https://<your-username>.github.io/<repo-name>/`. You can also run it manually from the **Actions** tab.

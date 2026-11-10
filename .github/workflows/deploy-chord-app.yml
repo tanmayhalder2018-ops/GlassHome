@@ -2,7 +2,7 @@ name: Deploy ChordSathi to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [claude/song-graphic-video-youtube-jgzlyo]
     paths: ['chord-app/**', '.github/workflows/deploy-chord-app.yml']
   workflow_dispatch:
 
@@ -24,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: chord-app
