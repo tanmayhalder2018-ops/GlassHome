@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ChordSathi</title>
-<meta name="theme-color" content="#0b0d17">
+<meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121214" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -13,162 +14,308 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChordSathi">
 <meta name="description" content="Free, private chord detection for any song or live instrument. Runs fully in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
+/* Layout: a single-column "practice desk": mode bar, a stage (big chord + diagrams),
+   a chord lane above the transport, then tools and the full chord sheet. */
 :root{
-  --bg:#0b0d17; --bg2:#141829; --glass:rgba(255,255,255,.06); --glass2:rgba(255,255,255,.10);
-  --line:rgba(255,255,255,.12); --text:#eef0ff; --muted:#9aa0c3; --accent:#7c6cff; --accent2:#22d3ee;
-  --good:#34d399; --warn:#fbbf24; --radius:18px;
+  --bg:#f5f3ee; --surface:#ffffff; --surface-2:#efece5; --line:#e2ddd2; --fg:#1c1a16; --muted:#6f6a60;
+  --accent:#d98300; --accent-ink:#1c1406; --accent-soft:rgba(217,131,0,.14);
+  --note:#0e8a8c; --note-soft:rgba(14,138,140,.14); --danger:#b42318; --good:#15803d;
+  --key-white:#ffffff; --key-black:#2a2823; --key-stroke:#cfc9bd; --string:#9a9488;
+  --shadow:0 1px 2px rgba(28,26,22,.06),0 8px 24px rgba(28,26,22,.06);
+  --f-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --r-lg:20px; --r-md:14px; --r-sm:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121214; --surface:#1a1a1e; --surface-2:#232329; --line:#2f2f36; --fg:#f3f0ea; --muted:#9b978f;
+    --accent:#ffb547; --accent-ink:#1a1305; --accent-soft:rgba(255,181,71,.14);
+    --note:#5fd4c9; --note-soft:rgba(95,212,201,.14); --danger:#fda29b; --good:#4ade80;
+    --key-white:#e9e7e2; --key-black:#0c0c0f; --key-stroke:#3b3b43; --string:#6e6b75;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.25);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121214; --surface:#1a1a1e; --surface-2:#232329; --line:#2f2f36; --fg:#f3f0ea; --muted:#9b978f;
+  --accent:#ffb547; --accent-ink:#1a1305; --accent-soft:rgba(255,181,71,.14);
+  --note:#5fd4c9; --note-soft:rgba(95,212,201,.14); --danger:#fda29b; --good:#4ade80;
+  --key-white:#e9e7e2; --key-black:#0c0c0f; --key-stroke:#3b3b43; --string:#6e6b75;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.25);
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{
-  background:radial-gradient(1200px 600px at 10% -10%,#2a1f6b 0%,transparent 60%),
-             radial-gradient(900px 500px at 110% 10%,#0e4b5c 0%,transparent 55%),var(--bg);
-  color:var(--text); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; min-height:100vh;
-}
-.wrap{max-width:980px;margin:0 auto;padding:20px 16px 60px}
-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-weight:800;font-size:20px}
-h1{font-size:22px;margin:0}
-.tag{color:var(--muted);font-size:13px}
-.card{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);padding:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);margin-bottom:16px}
-.tabs{display:flex;gap:8px;margin-bottom:16px}
-.tab{flex:1;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--glass);color:var(--text);font-weight:600;cursor:pointer;font-size:15px}
-.tab.active{background:linear-gradient(135deg,rgba(124,108,255,.35),rgba(34,211,238,.25));border-color:rgba(124,108,255,.6)}
-button,.btn,select{font:inherit}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:12px;border:1px solid var(--line);background:var(--glass2);color:var(--text);cursor:pointer;font-weight:600}
-.btn:hover{background:rgba(255,255,255,.16)}
-.btn.primary{background:linear-gradient(135deg,var(--accent),#5b8cff);border:none}
-.btn.round{width:56px;height:56px;border-radius:50%;padding:0;font-size:22px}
-.btn.sm{padding:6px 10px;font-size:13px}
-select{background:var(--bg2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:7px 8px}
-.drop{border:2px dashed rgba(255,255,255,.2);border-radius:var(--radius);padding:34px 16px;text-align:center;cursor:pointer;transition:.2s}
-.drop.over{border-color:var(--accent);background:rgba(124,108,255,.1)}
-.drop b{font-size:17px}
-.muted{color:var(--muted)}
-.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.progress{height:8px;background:rgba(255,255,255,.08);border-radius:8px;overflow:hidden;margin-top:12px}
-.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .15s}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);min-height:100vh;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding-block:max(16px,env(safe-area-inset-top,0px)) 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:16px}
 .hidden{display:none!important}
-.stage{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
-.now{font-size:76px;font-weight:800;line-height:1;letter-spacing:-1px;background:linear-gradient(135deg,#fff,#c7c2ff);-webkit-background-clip:text;background-clip:text;color:transparent;min-height:76px}
-.next{color:var(--muted);margin-top:8px;font-size:15px}
-.next b{color:var(--text);font-size:20px}
-.notes{color:var(--accent2);font-size:13px;margin-top:6px;min-height:20px}
-.diagram{display:flex;flex-direction:column;align-items:center;gap:10px}
+.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.i.fill{fill:currentColor;stroke:none}
+
+/* Top bar */
+.top{display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{width:38px;height:38px;flex:none}
+.brand h1{font:800 22px/1 var(--f-display);letter-spacing:-.02em;margin:0}
+.brand p{margin:3px 0 0;color:var(--muted);font-size:12.5px}
+.top .spacer{flex:1}
+
+/* Buttons */
+button,select,input{font:inherit;color:inherit}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border-radius:var(--r-sm);
+  border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap;
+  transition:background .15s,border-color .15s,transform .1s}
+.btn:hover{border-color:var(--muted)}
+.btn:active{transform:scale(.97)}
+.btn:focus-visible,.seg button:focus-visible,select:focus-visible,input:focus-visible,.chip:focus-visible,.drop:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.ghost{background:transparent}
+.btn.icon{width:40px;padding:0}
+.btn.sm{height:34px;padding:0 11px;font-size:13px}
+.btn.play{width:60px;height:60px;border-radius:50%;padding:0}
+.btn.play .i{width:24px;height:24px}
+
+/* Segmented controls */
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;padding:4px;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px}
+.seg button{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:var(--muted);padding:7px 13px;border-radius:9px;font-weight:600;font-size:14px;cursor:pointer}
+.seg button.active,.seg button.on{background:var(--surface);color:var(--fg);box-shadow:var(--shadow)}
+.seg.mode button{padding:9px 16px}
+
+/* Panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow)}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.panel-h h2{font:700 15px/1.2 var(--f-display);margin:0;letter-spacing:-.01em}
+.muted{color:var(--muted)}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* Loader */
+.drop{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;cursor:pointer;
+  border:1.5px dashed var(--line);border-radius:var(--r-md);padding:40px 16px;transition:.2s;background:var(--surface-2)}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop .disc{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink)}
+.drop .disc .i{width:26px;height:26px}
+.drop b{font:700 clamp(19px,3.4vw,24px)/1.2 var(--f-display);letter-spacing:-.01em;text-wrap:balance}
+.drop small{color:var(--muted);font-size:13px}
+.or{display:flex;justify-content:center;margin-top:14px}
+.progress{height:6px;background:var(--surface-2);border-radius:6px;overflow:hidden;margin-top:14px}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+#status{margin-top:10px;text-align:center;font-size:13px}
+.err{color:var(--danger);margin-top:10px;font-size:14px}
+
+/* Stage */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center}
+.meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.song{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--fg);font-size:12.5px;font-weight:600}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.now{font:800 clamp(64px,13vw,112px)/.95 var(--f-display);letter-spacing:-.04em;min-height:.95em;margin-top:6px;word-break:break-word}
+.notes{color:var(--note);font:600 13px/1.4 var(--f-mono);margin-top:8px;min-height:18px;letter-spacing:.04em}
+.next{display:flex;align-items:center;gap:12px;margin-top:16px;max-width:320px}
+.next .lbl{font-size:12px;color:var(--muted)}
+.next b{font:700 22px/1 var(--f-display)}
+.next .bar2{flex:1;height:4px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.next .bar2 i{display:block;height:100%;width:0;background:var(--note)}
+.next .in{font:500 12px var(--f-mono);color:var(--muted);min-width:40px;text-align:right}
+.diagram{display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}
 .diagram svg{display:block;max-width:100%;height:auto}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.seg button{background:transparent;border:0;color:var(--muted);padding:7px 12px;font-weight:600;cursor:pointer}
-.seg button.on{background:linear-gradient(135deg,rgba(124,108,255,.5),rgba(34,211,238,.3));color:var(--text)}
-#installBtn{margin-left:auto}
-.seek{width:100%;accent-color:var(--accent)}
-.time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
-.controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px}
-.ctl{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:12px;padding:4px 8px}
-.ctl label{font-size:12px;color:var(--muted)}
-.ctl .val{min-width:28px;text-align:center;font-weight:700}
-.badge{display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(52,211,153,.15);color:var(--good);font-size:13px;font-weight:600}
-.timeline{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin-top:12px;max-height:420px;overflow:auto;padding-right:4px}
-.chip{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center;cursor:pointer;transition:.15s}
-.chip:hover{background:rgba(255,255,255,.12)}
-.chip .c{font-weight:700;font-size:17px}
-.chip .t{font-size:11px;color:var(--muted)}
-.chip.on{background:linear-gradient(135deg,rgba(124,108,255,.55),rgba(34,211,238,.35));border-color:transparent;transform:scale(1.04)}
-.chip.loop{outline:2px solid var(--warn)}
-.chroma{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;align-items:end;height:90px;margin-top:14px}
-.chroma div{background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:4px 4px 0 0;min-height:2px;transition:height .1s}
-.chroma-l{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;font-size:11px;color:var(--muted);text-align:center}
-.meter{height:6px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:10px}
-.meter i{display:block;height:100%;width:0;background:var(--good)}
-.hist{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.hist span{padding:4px 10px;border-radius:10px;background:rgba(255,255,255,.07);font-weight:600}
-.err{color:#fca5a5;margin-top:10px}
-footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px}
+.gd-line{stroke:var(--string)}
+.gd-nut{stroke:var(--fg)}
+.gd-dot{fill:var(--note)}
+.gd-root{fill:var(--accent)}
+.gd-barre{fill:var(--note)}
+.gd-txt{fill:var(--muted);font-family:var(--f-mono)}
+.gd-open{fill:none;stroke:var(--muted)}
+.pk-w{fill:var(--key-white);stroke:var(--key-stroke)}
+.pk-b{fill:var(--key-black);stroke:var(--key-black)}
+.pk-on{fill:var(--note);stroke:var(--note)}
+.pk-root{fill:var(--accent);stroke:var(--accent)}
+.pk-lbl{fill:var(--accent-ink);font:700 9px var(--f-body)}
+
+/* Chord lane + transport */
+.lane{position:relative;height:40px;margin-top:20px;border-radius:var(--r-sm);overflow:hidden;background:var(--surface-2);cursor:pointer}
+.lane .s{position:absolute;top:0;bottom:0;display:flex;align-items:center;padding-left:6px;border-right:1px solid var(--bg);
+  font:700 12px var(--f-display);color:var(--muted);overflow:hidden;white-space:nowrap}
+.lane .s.on{background:var(--accent-soft);color:var(--fg)}
+.lane .head{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);left:0;pointer-events:none}
+.seek{width:100%;margin:10px 0 0;accent-color:var(--accent)}
+.times{display:flex;justify-content:space-between;font:500 12px var(--f-mono);color:var(--muted)}
+.transport{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
+.tool{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2);min-width:0}
+.tool .eyebrow{font-size:10.5px}
+.tool select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;width:100%}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper .val{flex:1;text-align:center;font:700 16px var(--f-mono)}
+.stepper .btn{height:30px;width:30px;padding:0}
+.tool input[type=range]{width:100%;accent-color:var(--accent)}
+.switch{display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:14px}
+.switch input{appearance:none;-webkit-appearance:none;width:38px;height:22px;border-radius:22px;background:var(--line);position:relative;cursor:pointer;transition:.2s;flex:none;margin:0}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--surface);transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{left:19px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+
+/* Chord sheet */
+.timeline{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;max-height:420px;overflow:auto;padding:2px}
+.chip{display:flex;flex-direction:column;gap:2px;align-items:flex-start;padding:10px 12px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);cursor:pointer;transition:.15s;text-align:left}
+.chip:hover{border-color:var(--muted)}
+.chip .c{font:700 18px/1.1 var(--f-display);letter-spacing:-.01em}
+.chip .t{font:500 11px var(--f-mono);color:var(--muted)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.on .t{color:var(--accent-ink);opacity:.75}
+.chip.loop{box-shadow:inset 0 0 0 2px var(--note)}
+
+/* Live */
+.meter{height:6px;border-radius:6px;background:var(--surface-2);overflow:hidden;margin-top:14px;max-width:320px}
+.meter i{display:block;height:100%;width:0;background:var(--good);transition:width .1s}
+.chroma{display:grid;grid-template-columns:repeat(12,1fr);gap:5px;align-items:end;height:84px;margin-top:20px}
+.chroma div{background:var(--note);opacity:.85;border-radius:4px 4px 2px 2px;min-height:3px;transition:height .1s}
+.chroma-l{display:grid;grid-template-columns:repeat(12,1fr);gap:5px;font:500 10.5px var(--f-mono);color:var(--muted);text-align:center;margin-top:6px}
+.sources{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:18px}
+.sources .btn{height:52px;font-size:15px}
+.howto{margin-top:14px;font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+.howto summary{cursor:pointer;font-weight:600;color:var(--fg)}
+.howto ol{margin:10px 0 0 18px;padding:0;display:grid;gap:4px}
+.howto b{color:var(--fg)}
+
+footer{color:var(--muted);font-size:12px;text-align:center;margin-top:8px}
+
 @media (max-width:640px){
   .stage{grid-template-columns:1fr;justify-items:center;text-align:center}
-  .now{font-size:60px;min-height:60px}
+  .meta{justify-content:center}
+  .song{flex-basis:100%;text-align:center}
+  .next{margin-inline:auto}
+  .meter{margin-inline:auto}
+  .brand p{display:none}
+  .bar{justify-content:center}
+  .transport{justify-content:center}
 }
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 4h3.5v16H7zM13.5 4H17v16h-3.5z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/><text x="12" y="15.5" font-size="7.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">5</text></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/><text x="12" y="15.5" font-size="7.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">5</text></symbol>
+  <symbol id="i-loop" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-screen" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/></symbol>
+  <symbol id="i-guitar" viewBox="0 0 24 24"><path d="M14 10l6-6M18 2l4 4M10.5 9.5a4 4 0 0 0-5.6.4c-1 1-1.2 2.3-.6 3.4L2.8 15a3 3 0 0 0 0 4.2l2 2a3 3 0 0 0 4.2 0l1.7-1.5c1.1.6 2.4.4 3.4-.6a4 4 0 0 0 .4-5.6z"/><circle cx="9" cy="15" r="1.5"/></symbol>
+  <symbol id="i-piano" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v9M12 4v9M16 4v9M8 13v7M12 13v7M16 13v7"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol>
+</svg>
+
 <div class="wrap">
-  <header>
-    <div class="logo">♪</div>
-    <div>
-      <h1>ChordSathi</h1>
-      <div class="tag">Free chord finder · works offline in your browser · nothing is uploaded</div>
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="var(--accent)"/>
+        <g stroke="var(--accent-ink)" stroke-width="1.6" stroke-linecap="round" opacity=".9">
+          <path d="M11 10v20M17 10v20M23 10v20M29 10v20"/><path d="M9 10h22" stroke-width="2.6"/>
+        </g>
+        <circle cx="17" cy="17" r="2.8" fill="var(--accent-ink)"/><circle cx="23" cy="23" r="2.8" fill="var(--accent-ink)"/><circle cx="29" cy="17" r="2.8" fill="var(--accent-ink)"/>
+      </svg>
+      <div>
+        <h1>ChordSathi</h1>
+        <p>Free chord finder · audio never leaves your device</p>
+      </div>
     </div>
-    <button class="btn sm hidden" id="installBtn">⬇ Install app</button>
+    <div class="spacer"></div>
+    <button class="btn sm hidden" id="installBtn"><svg class="i"><use href="#i-download"/></svg><span>Install</span></button>
+    <button class="btn icon" id="themeBtn" aria-label="Theme: system" title="Theme: system"><svg class="i"><use href="#i-auto"/></svg></button>
   </header>
 
-  <div class="row" style="margin-bottom:12px;justify-content:flex-end">
-    <span class="muted" style="font-size:13px">Show chords for</span>
-    <div class="seg" id="instSeg">
-      <button data-inst="guitar">🎸 Guitar</button><button data-inst="piano">🎹 Piano</button><button data-inst="both">Both</button>
+  <div class="bar">
+    <div class="seg mode" role="tablist" aria-label="Mode">
+      <button class="tab active" data-tab="song" role="tab"><svg class="i"><use href="#i-music"/></svg>Song</button>
+      <button class="tab" data-tab="live" role="tab"><svg class="i"><use href="#i-wave"/></svg>Live / YouTube</button>
     </div>
-  </div>
-  <div class="tabs">
-    <button class="tab active" data-tab="song">🎵 Song file</button>
-    <button class="tab" data-tab="live">🎤 Live / YouTube</button>
+    <div class="seg" id="instSeg" aria-label="Show chords for">
+      <button data-inst="guitar"><svg class="i"><use href="#i-guitar"/></svg>Guitar</button>
+      <button data-inst="piano"><svg class="i"><use href="#i-piano"/></svg>Piano</button>
+      <button data-inst="both">Both</button>
+    </div>
   </div>
 
   <!-- SONG MODE -->
-  <section id="tab-song">
-    <div class="card" id="loader">
+  <section id="tab-song" style="display:flex;flex-direction:column;gap:16px">
+    <div class="panel" id="loader">
       <label class="drop" id="drop">
         <input type="file" id="file" accept="audio/*,video/*" hidden>
-        <b>Drop a song here or tap to choose</b>
-        <div class="muted">MP3, WAV, M4A, OGG, FLAC, or a video file</div>
+        <span class="disc"><svg class="i"><use href="#i-upload"/></svg></span>
+        <b>Find the chords in any song</b>
+        <small>Drop a file here or tap to choose · MP3, WAV, M4A, OGG, FLAC or video</small>
       </label>
-      <div class="row" style="margin-top:12px;justify-content:center">
-        <button class="btn" id="demo">▶ Try a demo progression</button>
-      </div>
-      <div id="status" class="muted" style="margin-top:10px;text-align:center"></div>
+      <div class="or"><button class="btn ghost" id="demo"><svg class="i fill"><use href="#i-play"/></svg>Try a demo (C – G – Am – F)</button></div>
+      <div id="status" class="muted"></div>
       <div class="progress hidden" id="prog"><i></i></div>
       <div class="err hidden" id="err"></div>
     </div>
 
-    <div id="player" class="hidden">
-      <div class="card">
-        <div class="row" style="justify-content:space-between;margin-bottom:10px">
-          <div class="muted" id="songName" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%"></div>
-          <span class="badge" id="keyBadge"></span>
-        </div>
+    <div id="player" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+      <div class="panel">
+        <div class="meta"><span class="song" id="songName"></span><span class="pill" id="keyBadge"></span></div>
         <div class="stage">
-          <div>
+          <div style="min-width:0">
+            <div class="eyebrow">Now playing</div>
             <div class="now" id="nowChord">–</div>
-            <div class="next">Next: <b id="nextChord">–</b> <span id="nextIn"></span></div>
             <div class="notes" id="nowNotes"></div>
+            <div class="next"><span class="lbl">Next</span><b id="nextChord">–</b><span class="bar2"><i id="nextBar"></i></span><span class="in" id="nextIn"></span></div>
           </div>
           <div class="diagram" id="nowDiagram"></div>
         </div>
-        <div style="margin-top:14px">
-          <input type="range" class="seek" id="seek" min="0" max="1000" value="0">
-          <div class="row" style="justify-content:space-between"><span class="time" id="tCur">0:00</span><span class="time" id="tDur">0:00</span></div>
+
+        <div class="lane" id="lane" aria-label="Chord lane"><div class="head" id="laneHead"></div></div>
+        <input type="range" class="seek" id="seek" min="0" max="1000" value="0" aria-label="Position">
+        <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
+
+        <div class="transport">
+          <button class="btn icon ghost" id="back5" aria-label="Back 5 seconds"><svg class="i"><use href="#i-back"/></svg></button>
+          <button class="btn primary play" id="play" aria-label="Play"><svg class="i fill"><use href="#i-play"/></svg></button>
+          <button class="btn icon ghost" id="fwd5" aria-label="Forward 5 seconds"><svg class="i"><use href="#i-fwd"/></svg></button>
         </div>
-        <div class="controls">
-          <button class="btn round primary" id="play" aria-label="Play">▶</button>
-          <button class="btn sm" id="back5">⟲ 5s</button>
-          <button class="btn sm" id="fwd5">5s ⟳</button>
-          <div class="ctl"><label>Speed</label>
-            <select id="speed"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option></select></div>
-          <div class="ctl"><label>Transpose</label>
-            <button class="btn sm" id="trDown">−</button><span class="val" id="trVal">0</span><button class="btn sm" id="trUp">+</button></div>
-          <div class="ctl"><label>Capo</label>
-            <select id="capo"></select></div>
-          <div class="ctl"><label><input type="checkbox" id="simple"> Simple chords</label></div>
+
+        <div class="tools">
+          <div class="tool"><span class="eyebrow">Speed</span>
+            <select id="speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option></select></div>
+          <div class="tool"><span class="eyebrow">Transpose</span>
+            <div class="stepper"><button class="btn" id="trDown" aria-label="Transpose down">−</button><span class="val" id="trVal">0</span><button class="btn" id="trUp" aria-label="Transpose up">+</button></div></div>
+          <div class="tool"><span class="eyebrow">Capo</span><select id="capo"></select></div>
+          <div class="tool"><span class="eyebrow">Chord changes</span>
+            <input type="range" id="sens" min="0" max="100" value="50" aria-label="Chord change sensitivity">
+            <span class="muted" style="display:flex;justify-content:space-between;font-size:11px"><span>fewer</span><span>more</span></span></div>
+          <div class="tool" style="justify-content:center"><label class="switch"><input type="checkbox" id="simple">Simple chords</label></div>
         </div>
-        <div class="controls">
-          <div class="ctl" style="flex:1;min-width:220px"><label>Chord changes</label>
-            <input type="range" id="sens" min="0" max="100" value="50" style="flex:1;accent-color:var(--accent)">
-            <label>more</label></div>
-          <button class="btn sm" id="loopBtn" title="Tap two chords in the timeline to loop between them">🔁 Loop: off</button>
-          <button class="btn sm" id="export">⬇ Chord sheet</button>
-          <button class="btn sm" id="newSong">📂 New song</button>
+        <div class="actions">
+          <button class="btn sm" id="loopBtn" title="Tap two chords in the sheet to loop between them"><svg class="i"><use href="#i-loop"/></svg><span>Loop: off</span></button>
+          <button class="btn sm" id="export"><svg class="i"><use href="#i-download"/></svg><span>Chord sheet</span></button>
+          <button class="btn sm ghost" id="newSong"><svg class="i"><use href="#i-folder"/></svg><span>New song</span></button>
         </div>
       </div>
-      <div class="card">
-        <div class="row" style="justify-content:space-between"><b>Chord timeline</b><span class="muted" style="font-size:12px">Tap a chord to jump to it</span></div>
+
+      <div class="panel">
+        <div class="panel-h"><h2>Chord sheet</h2><span class="muted" style="font-size:12.5px">Tap a chord to jump there</span></div>
         <div class="timeline" id="timeline"></div>
       </div>
     </div>
@@ -177,42 +324,43 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px}
 
   <!-- LIVE MODE -->
   <section id="tab-live" class="hidden">
-    <div class="card">
+    <div class="panel">
       <div class="stage">
-        <div>
+        <div style="min-width:0">
+          <div class="eyebrow">Hearing</div>
           <div class="now" id="liveChord">–</div>
           <div class="notes" id="liveNotes">Play an instrument near the mic, or listen to a YouTube tab</div>
-          <div class="meter"><i id="liveLevel"></i></div>
+          <div class="meter" aria-label="Input level"><i id="liveLevel"></i></div>
         </div>
         <div class="diagram" id="liveDiagram"></div>
       </div>
       <div class="chroma" id="chromaBars"></div>
       <div class="chroma-l" id="chromaLabels"></div>
-      <div class="controls">
-        <button class="btn primary" id="liveBtn">🎤 Listen with mic</button>
-        <button class="btn primary" id="tabBtn">🖥 Listen to a tab (YouTube)</button>
-        <div class="ctl"><label><input type="checkbox" id="liveSimple"> Simple chords</label></div>
+      <div class="sources">
+        <button class="btn primary" id="liveBtn"><svg class="i"><use href="#i-mic"/></svg><span>Listen with mic</span></button>
+        <button class="btn" id="tabBtn"><svg class="i"><use href="#i-screen"/></svg><span>Listen to a tab (YouTube)</span></button>
       </div>
-      <details class="muted" style="margin-top:12px;font-size:13px">
-        <summary style="cursor:pointer">How to get chords from a YouTube video</summary>
-        <ol style="margin:8px 0 0 18px;padding:0">
+      <div class="actions"><label class="switch"><input type="checkbox" id="liveSimple">Simple chords</label></div>
+      <details class="howto">
+        <summary>How to get chords from a YouTube video</summary>
+        <ol>
           <li>Open the video in another tab of Chrome or Edge on a computer.</li>
-          <li>Click <b>Listen to a tab</b> here, choose the YouTube tab, and keep <b>“Also share tab audio”</b> switched on.</li>
+          <li>Click <b>Listen to a tab</b>, choose the YouTube tab, and keep <b>Also share tab audio</b> switched on.</li>
           <li>Play the video from the start. Chords appear below with their times.</li>
           <li>Click <b>Copy chord sheet</b> when the song ends.</li>
         </ol>
         <p style="margin:8px 0 0">On a phone, use <b>Listen with mic</b> and play the video on another device or a speaker.</p>
       </details>
-      <div class="row" style="justify-content:space-between;margin-top:14px">
-        <b>Chords heard</b>
-        <div class="row"><button class="btn sm" id="liveCopy">📋 Copy chord sheet</button><button class="btn sm" id="liveClear">Clear</button></div>
-      </div>
-      <div class="timeline" id="liveHist" style="max-height:260px"></div>
       <div class="err hidden" id="liveErr"></div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <div class="panel-h"><h2>Chords heard</h2>
+        <div class="actions" style="margin:0"><button class="btn sm" id="liveCopy"><svg class="i"><use href="#i-copy"/></svg><span>Copy chord sheet</span></button><button class="btn sm ghost" id="liveClear">Clear</button></div></div>
+      <div class="timeline" id="liveHist" style="max-height:260px"></div>
     </div>
   </section>
 
-  <footer>ChordSathi · Chords are estimated by signal analysis and may be wrong. Your audio stays on your device.</footer>
+  <footer>Chords are estimated by signal analysis and can be wrong. Your audio stays on your device.</footer>
 </div>
 
 <script>
@@ -429,46 +577,46 @@ function guitarShape(root,qid){
   const o=opts[0];
   return {frets:o.t.map(x=>x<0?-1:x+o.fr), barre:o.fr};
 }
+const OPEN_PC=[4,9,2,7,11,4];
 function diagramSVG(root,qid,size=1){
   if(root<0) return '';
   const {frets,barre}=guitarShape(root,qid);
   const pos=frets.filter(f=>f>0), maxF=Math.max(0,...pos);
   const base=maxF<=4?1:Math.min(...pos);
-  const W=130*size,H=150*size,x0=22*size,y0=28*size,sw=17*size,fh=22*size;
+  const W=134*size,H=150*size,x0=24*size,y0=28*size,sw=17*size,fh=22*size;
   let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Guitar diagram">`;
-  s+=`<g stroke="rgba(255,255,255,.55)" stroke-width="${1.2*size}">`;
-  for(let i=0;i<6;i++) s+=`<line x1="${x0+i*sw}" y1="${y0}" x2="${x0+i*sw}" y2="${y0+5*fh}"/>`;
-  for(let j=0;j<=5;j++) s+=`<line x1="${x0}" y1="${y0+j*fh}" x2="${x0+5*sw}" y2="${y0+j*fh}" ${j===0&&base===1?`stroke-width="${4*size}" stroke="#fff"`:''}/>`;
+  s+=`<g stroke-width="${1.2*size}">`;
+  for(let i=0;i<6;i++) s+=`<line class="gd-line" x1="${x0+i*sw}" y1="${y0}" x2="${x0+i*sw}" y2="${y0+5*fh}"/>`;
+  for(let j=0;j<=5;j++) s+=`<line class="${j===0&&base===1?'gd-nut':'gd-line'}" x1="${x0}" y1="${y0+j*fh}" x2="${x0+5*sw}" y2="${y0+j*fh}" ${j===0&&base===1?`stroke-width="${4*size}"`:''}/>`;
   s+=`</g>`;
-  if(base>1) s+=`<text x="${x0-8*size}" y="${y0+fh*0.65}" fill="#9aa0c3" font-size="${11*size}" text-anchor="end">${base}</text>`;
+  if(base>1) s+=`<text class="gd-txt" x="${x0-9*size}" y="${y0+fh*0.65}" font-size="${11*size}" text-anchor="end">${base}fr</text>`;
   if(barre>0){
     const first=frets.findIndex(f=>f>=0), row=barre-base;
-    s+=`<rect x="${x0+first*sw-6*size}" y="${y0+row*fh+fh/2-6*size}" width="${(5-first)*sw+12*size}" height="${12*size}" rx="${6*size}" fill="#7c6cff"/>`;
+    s+=`<rect class="gd-barre" x="${x0+first*sw-6*size}" y="${y0+row*fh+fh/2-6*size}" width="${(5-first)*sw+12*size}" height="${12*size}" rx="${6*size}"/>`;
   }
   frets.forEach((f,i)=>{
-    const x=x0+i*sw;
-    if(f<0) s+=`<text x="${x}" y="${y0-9*size}" fill="#9aa0c3" font-size="${12*size}" text-anchor="middle">×</text>`;
-    else if(f===0) s+=`<circle cx="${x}" cy="${y0-13*size}" r="${4.5*size}" fill="none" stroke="#9aa0c3" stroke-width="${1.4*size}"/>`;
-    else if(!(barre>0&&f===barre)){ const row=f-base; s+=`<circle cx="${x}" cy="${y0+row*fh+fh/2}" r="${7*size}" fill="#22d3ee"/>`; }
+    const x=x0+i*sw, isRoot=f>=0 && (OPEN_PC[i]+f)%12===root;
+    if(f<0) s+=`<text class="gd-txt" x="${x}" y="${y0-9*size}" font-size="${12*size}" text-anchor="middle">×</text>`;
+    else if(f===0) s+=`<circle class="${isRoot?'gd-root':'gd-open'}" cx="${x}" cy="${y0-13*size}" r="${4.5*size}" stroke-width="${1.6*size}"/>`;
+    else if(!(barre>0&&f===barre)||isRoot){ const row=f-base; s+=`<circle class="${isRoot?'gd-root':'gd-dot'}" cx="${x}" cy="${y0+row*fh+fh/2}" r="${7*size}"/>`; }
   });
   return s+`</svg>`;
 }
-
 function pianoSVG(root,ivs){
   if(root<0) return '';
-  const notes=new Set(ivs.map(iv=>root+iv)); // semitones from C of first octave (0..22)
+  const notes=new Set(ivs.map(iv=>root+iv));
   const WW=20,WH=78,BW=12,BH=48,octs=2,W=WW*7*octs+2;
   const WHITE=[0,2,4,5,7,9,11], BLACK={1:1,3:2,6:4,8:5,10:6};
   let s=`<svg width="${W}" height="${WH+2}" viewBox="0 0 ${W} ${WH+2}" role="img" aria-label="Piano diagram">`;
   for(let o=0;o<octs;o++) WHITE.forEach((pc,i)=>{
     const n=o*12+pc, x=1+(o*7+i)*WW, on=notes.has(n), isRoot=n===root;
-    s+=`<rect x="${x}" y="1" width="${WW-1}" height="${WH}" rx="3" fill="${isRoot?'#7c6cff':on?'#22d3ee':'#eef0ff'}" stroke="#0b0d17"/>`;
-    if(on) s+=`<text x="${x+WW/2-0.5}" y="${WH-7}" font-size="9" font-weight="700" text-anchor="middle" fill="#0b0d17">${noteName(n)}</text>`;
+    s+=`<rect class="${isRoot?'pk-root':on?'pk-on':'pk-w'}" x="${x}" y="1" width="${WW-1}" height="${WH}" rx="4"/>`;
+    if(on) s+=`<text class="pk-lbl" x="${x+WW/2-0.5}" y="${WH-7}" text-anchor="middle">${noteName(n)}</text>`;
   });
   for(let o=0;o<octs;o++) for(const pc in BLACK){
     const n=o*12+(+pc), x=1+(o*7+BLACK[pc])*WW-BW/2-0.5, on=notes.has(n), isRoot=n===root;
-    s+=`<rect x="${x}" y="1" width="${BW}" height="${BH}" rx="2" fill="${isRoot?'#7c6cff':on?'#22d3ee':'#1b1f33'}" stroke="#0b0d17"/>`;
-    if(on) s+=`<text x="${x+BW/2}" y="${BH-6}" font-size="7" font-weight="700" text-anchor="middle" fill="#0b0d17">${noteName(n)}</text>`;
+    s+=`<rect class="${isRoot?'pk-root':on?'pk-on':'pk-b'}" x="${x}" y="1" width="${BW}" height="${BH}" rx="3"/>`;
+    if(on) s+=`<text class="pk-lbl" x="${x+BW/2}" y="${BH-6}" text-anchor="middle" style="font-size:7px">${noteName(n)}</text>`;
   }
   return s+'</svg>';
 }
@@ -498,6 +646,7 @@ function chordDiagram(c,simple){
   const q=QUALITIES[c.q], qi=simple?QUALITIES.findIndex(x=>x.id===q.simple):c.q;
   return instrumentHTML(((c.root+transpose-capo)%12+12)%12,QUALITIES[qi].id,QUALITIES[qi].iv);
 }
+function setBtn(el,icon,text){ el.innerHTML=(icon?`<svg class="i${icon==="play"||icon==="pause"?" fill":""}"><use href="#i-${icon}"/></svg>`:"")+(text!=null?`<span>${text}</span>`:""); }
 const fmt=t=>{ t=Math.max(0,t|0); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
 const $=id=>document.getElementById(id);
 
@@ -505,7 +654,7 @@ const $=id=>document.getElementById(id);
 const audio=$('audio');
 let feat=null, segs=[], key=null, curIdx=-1, loopA=-1, loopB=-1, loopMode=0, objUrl=null;
 
-for(let i=0;i<=7;i++) $('capo').insertAdjacentHTML('beforeend',`<option value="${i}">${i?'Fret '+i:'None'}</option>`);
+for(let i=0;i<=7;i++) $('capo').insertAdjacentHTML('beforeend',`<option value="${i}">${i?'Fret '+i:'No capo'}</option>`);
 
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));
@@ -558,12 +707,14 @@ function reDecode(){
 }
 function renderKey(){
   if(!key) return;
-  $('keyBadge').textContent='Key: '+noteName(key.r+transpose)+(key.minor?' minor':' major')+(capo?` · capo ${capo}`:'');
+  $('keyBadge').textContent='Key of '+noteName(key.r+transpose)+(key.minor?' minor':' major')+(capo?` · capo ${capo}`:'');
 }
 function renderAll(){
   renderKey();
   const simple=$('simple').checked;
   $('trVal').textContent=(transpose>0?'+':'')+transpose;
+  const total=segs.length?segs[segs.length-1].end:1;
+  $('lane').innerHTML=segs.map((g,i)=>`<div class="s" data-i="${i}" style="left:${g.start/total*100}%;width:${(g.end-g.start)/total*100}%">${(g.end-g.start)/total>0.025?chordLabel(g,simple):''}</div>`).join('')+'<div class="head" id="laneHead"></div>';
   $('timeline').innerHTML=segs.map((g,i)=>`<div class="chip" data-i="${i}"><div class="c">${chordLabel(g,simple)}</div><div class="t">${fmt(Math.round(g.start))}</div></div>`).join('');
   curIdx=-1; tick(true);
 }
@@ -574,12 +725,14 @@ $('timeline').onclick=e=>{
   if(loopMode===2){ loopB=Math.max(i,loopA); loopA=Math.min(i,loopA); loopMode=3; updateLoopBtn(); markLoop(); }
   audio.currentTime=segs[i].start+0.01; tick(true);
 };
+$('lane').onclick=e=>{ if(!segs.length) return; const r=$('lane').getBoundingClientRect();
+  const total=segs[segs.length-1].end; audio.currentTime=Math.max(0,Math.min(total,(e.clientX-r.left)/r.width*total)); tick(true); };
 function markLoop(){
-  document.querySelectorAll('.chip').forEach(c=>{ const i=+c.dataset.i;
+  document.querySelectorAll('#timeline .chip').forEach(c=>{ const i=+c.dataset.i;
     c.classList.toggle('loop', loopA>=0 && i>=loopA && i<=(loopB>=0?loopB:loopA)); });
 }
 function updateLoopBtn(){
-  $('loopBtn').textContent=['🔁 Loop: off','🔁 Tap start chord','🔁 Tap end chord','🔁 Loop: on (tap to stop)'][loopMode];
+  setBtn($('loopBtn'),'loop',['Loop: off','Tap the start chord','Tap the end chord','Looping · tap to stop'][loopMode]);
 }
 $('loopBtn').onclick=()=>{ if(loopMode===0){ loopMode=1; } else { loopMode=0; loopA=loopB=-1; } updateLoopBtn(); markLoop(); };
 
@@ -597,8 +750,9 @@ function tick(force){
   const i=findSeg(t);
   const simple=$('simple').checked;
   if(i!==curIdx||force){
-    const prevChip=document.querySelector('.chip.on'); prevChip&&prevChip.classList.remove('on');
-    const chip=document.querySelector(`.chip[data-i="${i}"]`);
+    document.querySelectorAll('#timeline .chip.on,#lane .s.on').forEach(x=>x.classList.remove('on'));
+    const ls=document.querySelector(`#lane .s[data-i="${i}"]`); ls&&ls.classList.add('on');
+    const chip=document.querySelector(`#timeline .chip[data-i="${i}"]`);
     if(chip){ chip.classList.add('on'); const tl=$('timeline');
       if(chip.offsetTop<tl.scrollTop||chip.offsetTop>tl.scrollTop+tl.clientHeight-60) tl.scrollTop=chip.offsetTop-tl.clientHeight/2; }
     const g=segs[i];
@@ -609,8 +763,10 @@ function tick(force){
     $('nextChord').textContent=n?chordLabel(n,simple):'–';
     curIdx=i;
   }
-  const n=segs[i+1];
-  $('nextIn').textContent=n?`in ${Math.max(0,n.start-t).toFixed(1)}s`:'';
+  const n=segs[i+1], cur=segs[i], total=segs[segs.length-1].end||1;
+  $('nextIn').textContent=n?`${Math.max(0,n.start-t).toFixed(1)}s`:'';
+  $('nextBar').style.width=n?Math.min(100,Math.max(0,(t-cur.start)/(cur.end-cur.start)*100))+'%':'0';
+  const hd=$('laneHead'); if(hd) hd.style.left=Math.min(100,t/total*100)+'%';
 }
 (function loop(){ if(!audio.paused) tick(); requestAnimationFrame(loop); })();
 
@@ -618,9 +774,9 @@ let seeking=false;
 $('seek').addEventListener('input',()=>{ seeking=true; const d=audio.duration||0; audio.currentTime=$('seek').value/1000*d; tick(); });
 $('seek').addEventListener('change',()=>{ seeking=false; });
 $('play').onclick=()=>{ audio.paused?audio.play():audio.pause(); };
-audio.onplay=()=>{ $('play').textContent='❚❚'; };
-audio.onpause=()=>{ $('play').textContent='▶'; };
-audio.onended=()=>{ $('play').textContent='▶'; };
+audio.onplay=()=>{ setBtn($('play'),'pause'); $('play').setAttribute('aria-label','Pause'); };
+audio.onpause=()=>{ setBtn($('play'),'play'); $('play').setAttribute('aria-label','Play'); };
+audio.onended=()=>{ setBtn($('play'),'play'); };
 audio.onloadedmetadata=()=>tick(true);
 $('back5').onclick=()=>{ audio.currentTime=Math.max(0,audio.currentTime-5); tick(); };
 $('fwd5').onclick=()=>{ audio.currentTime=Math.min(audio.duration||0,audio.currentTime+5); tick(); };
@@ -678,6 +834,16 @@ function wavBlob(samples,sr){
   return new Blob([b],{type:'audio/wav'});
 }
 
+/* ================= Theme ================= */
+const THEMES=['system','light','dark'], THEME_ICON={system:'auto',light:'sun',dark:'moon'};
+let theme='system'; try{ theme=localStorage.getItem('cs-theme')||'system'; }catch(e){}
+function applyTheme(){
+  if(theme==='system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme',theme);
+  setBtn($('themeBtn'),THEME_ICON[theme]); $('themeBtn').title=$('themeBtn').ariaLabel='Theme: '+theme;
+}
+applyTheme();
+$('themeBtn').onclick=()=>{ theme=THEMES[(THEMES.indexOf(theme)+1)%3]; try{ localStorage.setItem('cs-theme',theme); }catch(e){} applyTheme(); };
+
 /* ================= Instrument switch, install, offline ================= */
 function paintInst(){ document.querySelectorAll('#instSeg button').forEach(b=>b.classList.toggle('on',b.dataset.inst===instrument)); }
 paintInst();
@@ -699,7 +865,7 @@ $('liveBtn').onclick=()=> live?stopLive():startLive('mic');
 $('tabBtn').onclick=()=> live?stopLive():startLive('tab');
 $('liveClear').onclick=()=>{ liveLog=[]; $('liveHist').innerHTML=''; };
 $('liveCopy').onclick=()=>{
-  const btn=$('liveCopy'), done=m=>{ btn.textContent=m; setTimeout(()=>btn.textContent='📋 Copy chord sheet',1800); };
+  const btn=$('liveCopy'), done=m=>{ setBtn(btn,'copy',m); setTimeout(()=>setBtn(btn,'copy','Copy chord sheet'),1800); };
   if(!liveLog.length){ done('Nothing heard yet'); return; }
   let txt='Chords heard (ChordSathi live)\n\n';
   liveLog.forEach(e=>{ txt+=`${fmt(e.t).padStart(6)}  ${e.label}\n`; });
@@ -730,7 +896,7 @@ async function startLive(kind){
     const td=new Float32Array(an.fftSize);
     live={kind,stream,ctx,an,db,mag,td,avg:new Float64Array(12),cand:null,candN:0,shown:null,timer:0,t0:performance.now(),candT:0};
     live.timer=setInterval(liveStep,120);
-    $(kind==='tab'?'tabBtn':'liveBtn').textContent='⏹ Stop listening';
+    setBtn($(kind==='tab'?'tabBtn':'liveBtn'),'stop','Stop listening');
     $(kind==='tab'?'liveBtn':'tabBtn').classList.add('hidden');
     $('liveNotes').textContent=kind==='tab'?'Listening to the shared tab…':'Listening to the mic…';
   }catch(e){
@@ -743,7 +909,7 @@ async function startLive(kind){
 function stopLive(){
   if(!live) return;
   clearInterval(live.timer); live.stream.getTracks().forEach(t=>t.stop()); live.ctx.close();
-  live=null; $('liveBtn').textContent='🎤 Listen with mic'; $('tabBtn').textContent='🖥 Listen to a tab (YouTube)';
+  live=null; setBtn($('liveBtn'),'mic','Listen with mic'); setBtn($('tabBtn'),'screen','Listen to a tab (YouTube)');
   $('liveBtn').classList.remove('hidden'); $('tabBtn').classList.remove('hidden');
   $('liveLevel').style.width='0';
 }
