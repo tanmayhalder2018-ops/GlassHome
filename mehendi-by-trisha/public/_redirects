@@ -1,0 +1,9 @@
+# Send every non-preferred host to the single canonical domain, keeping the path.
+# http → https on mehendibytrisha.in itself is handled by Netlify's "Force HTTPS"
+# setting (no rule here, so the canonical host can never redirect to itself).
+# Every rule below points to a different host, so redirect loops are impossible.
+# The "!" forces the redirect even though the files exist on those hosts.
+http://mehendi-by-trisha.netlify.app/*   https://mehendibytrisha.in/:splat  301!
+https://mehendi-by-trisha.netlify.app/*  https://mehendibytrisha.in/:splat  301!
+http://www.mehendibytrisha.in/*          https://mehendibytrisha.in/:splat  301!
+https://www.mehendibytrisha.in/*         https://mehendibytrisha.in/:splat  301!
