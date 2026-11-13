@@ -1,0 +1,8 @@
+# Response headers (shipped inside the site so they apply however it is deployed).
+/images/*
+  Cache-Control: public, max-age=604800
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
