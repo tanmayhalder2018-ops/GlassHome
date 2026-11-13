@@ -1,0 +1,50 @@
+# Mehendi by Trisha — website
+
+Portfolio and booking website for **Mehendi by Trisha**, mehendi artist in Maslandapur, West Bengal.
+Built with React, Vite, TypeScript, Framer Motion and Lucide icons.
+
+## Where to change things
+
+| What | File |
+| --- | --- |
+| **WhatsApp number**, default message | `src/config/site.ts` → `WHATSAPP_NUMBER` (format `91XXXXXXXXXX`) |
+| **Instagram / Facebook links** | `src/config/site.ts` → `SOCIAL` (empty `''` = hidden) |
+| Google Maps link | `src/config/site.ts` → `MAPS_URL` |
+| **Gallery photos, titles, captions, categories** | `src/data/gallery.ts` |
+| Services text & photos | `src/data/services.ts` |
+| Artist biography | `src/components/ArtistIntroduction.tsx` → `BIO` |
+| Instagram-style grid photos | `src/components/InstagramSection.tsx` → `FEED` |
+| Website address (canonical, sitemap, social previews) | `.env` → `VITE_SITE_URL` |
+
+## Adding or replacing gallery photos
+
+1. Copy the original photo into `raw-photos/`, named the way you want it referenced,
+   e.g. `raw-photos/bridal-rose-palm.jpg`. (This folder is not committed — originals stay on your computer.)
+2. Run `npm run images` — this creates optimised WebP copies in `public/images/work/`
+   and records the size in `src/data/image-manifest.json`.
+3. Add an entry in `src/data/gallery.ts` with `slug: 'bridal-rose-palm'`, a title, alt text
+   and categories (`bridal`, `arabic`, `traditional`, `minimal`, `festive` — or `[]` if unsure).
+
+To replace a photo, put a new file with the same name in `raw-photos/` and run `npm run images -- --force`.
+To remove one, delete its entry in `gallery.ts`.
+A gallery filter only appears once at least one photo uses that category (e.g. "Festive").
+
+## Develop & build
+
+```bash
+npm install
+npm run dev      # local preview at http://localhost:5173
+npm run build    # production build into dist/
+npm run preview  # serve the production build
+```
+
+## Deploy on Netlify
+
+`netlify.toml` at the repository root already points Netlify at this folder:
+base `mehendi-by-trisha`, command `npm run build`, publish `dist`.
+
+1. Netlify → *Add new site → Import an existing project* → choose this GitHub repository.
+2. Leave the build settings as detected from `netlify.toml` and deploy.
+3. Once the real address is known, update `VITE_SITE_URL` in `.env` (or set it as an
+   environment variable in Netlify) and redeploy so the canonical URL, sitemap and
+   social previews use it.
