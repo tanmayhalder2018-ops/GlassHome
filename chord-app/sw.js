@@ -10,10 +10,7 @@ self.addEventListener('activate', e => {
 });
 // Network first (so updates arrive), fall back to cache when offline.
 self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  // The Mehendi by Trisha site is published next to ChordSathi; leave its requests alone.
-  if (url.pathname.includes('/mehendi/')) return;
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(
     fetch(e.request).then(r => {
       const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r;
