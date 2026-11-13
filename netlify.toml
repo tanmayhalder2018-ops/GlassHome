@@ -1,8 +1,11 @@
-# Netlify deploys the Mehendi by Trisha website from its sub-folder.
+# Netlify hosts ONLY the Mehendi by Trisha website (from its own folder).
+# ChordSathi is separate and stays on GitHub Pages.
 [build]
   base = "mehendi-by-trisha"
   command = "npm run build"
   publish = "dist"
+  # Only rebuild when the Mehendi site (or this file) changes — ChordSathi edits never trigger it.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../netlify.toml"
 
 [build.environment]
   NODE_VERSION = "22"

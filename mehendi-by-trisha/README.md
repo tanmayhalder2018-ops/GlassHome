@@ -39,17 +39,10 @@ npm run build    # production build into dist/
 npm run preview  # serve the production build
 ```
 
-## Live on GitHub Pages
+## Hosting: Netlify (separate from ChordSathi)
 
-Every push to the default branch (`claude/song-graphic-video-youtube-jgzlyo`) that touches this
-folder rebuilds and publishes the site with `.github/workflows/deploy-chord-app.yml`:
-
-**https://tanmayhalder2018-ops.github.io/GlassHome/mehendi/**
-
-(ChordSathi stays at https://tanmayhalder2018-ops.github.io/GlassHome/ — both share one Pages site.)
-When a custom domain is chosen, change `VITE_SITE_URL` in that workflow.
-
-## Deploy on Netlify (optional alternative)
+This website is hosted on Netlify only. ChordSathi lives in `chord-app/` and is hosted
+separately on GitHub Pages; the two never build or deploy together.
 
 `netlify.toml` at the repository root already points Netlify at this folder:
 base `mehendi-by-trisha`, command `npm run build`, publish `dist`.
