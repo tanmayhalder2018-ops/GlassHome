@@ -63,7 +63,10 @@ export function ArtistIntroduction() {
           ))}
 
           <Reveal delay={0.3}>
-            <p className="about__place"><MapPin size={15} strokeWidth={1.5} /> {BUSINESS.locality}, {BUSINESS.region}</p>
+            <p className="about__place"><MapPin size={15} strokeWidth={1.5} /> Based in {BUSINESS.locality}, {BUSINESS.region}</p>
+            <p className="about__areas">
+              Also taking bookings in <a href="#areas">Barasat, Madhyamgram, Kolkata and across North 24 Parganas</a>.
+            </p>
           </Reveal>
 
           <ul className="about__values">

@@ -184,7 +184,7 @@ export function BookingForm() {
                   </label>
                   <label className="field">
                     <span className="field__label">Event Location <i aria-hidden="true">*</i></span>
-                    <input {...field('location')} type="text" autoComplete="address-level2" required placeholder="Town / venue" />
+                    <input {...field('location')} type="text" autoComplete="address-level2" required placeholder="e.g. Maslandapur, Barasat, Kolkata" />
                     {err('location')}
                   </label>
                   <label className="field">

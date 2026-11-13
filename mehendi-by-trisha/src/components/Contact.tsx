@@ -55,6 +55,9 @@ export function Contact() {
             <address className="contact__address">
               {BUSINESS.locality}, {BUSINESS.region}, {BUSINESS.country}
             </address>
+            <p className="contact__serving">
+              Serving <a href="#areas">Barasat · Madhyamgram · Kolkata · North 24 Parganas</a>
+            </p>
           </Reveal>
           <Vine className="contact__vine" />
         </header>

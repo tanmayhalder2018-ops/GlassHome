@@ -13,6 +13,8 @@ import { Footer } from './components/Footer'
 import { FloatingWhatsApp } from './components/FloatingWhatsApp'
 import { Cursor } from './components/Cursor'
 import { LightboxProvider } from './components/Lightbox'
+import { ServiceAreas } from './components/ServiceAreas'
+import { Faq } from './components/Faq'
 
 export default function App() {
   return (
@@ -26,9 +28,11 @@ export default function App() {
             <Marquee />
             <ArtistIntroduction />
             <Services />
+            <ServiceAreas />
             <Gallery />
             <BrandStory />
             <BookingForm />
+            <Faq />
             <InstagramSection />
             <Contact />
           </main>
