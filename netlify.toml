@@ -4,8 +4,8 @@
   base = "mehendi-by-trisha"
   command = "npm run build"
   publish = "dist"
-  # Only rebuild when the Mehendi site (or this file) changes — ChordSathi edits never trigger it.
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../netlify.toml"
+  # With a base directory set, Netlify skips builds when nothing in it changed,
+  # so edits to ChordSathi or other folders never trigger a Mehendi rebuild.
 
 [build.environment]
   NODE_VERSION = "22"

@@ -2123,6 +2123,11 @@ em {
   text-decoration: none;
   box-shadow: 0 18px 40px -14px rgba(48, 70, 56, 0.7);
 }
+/* Netlify's free-plan badge (an iframe it injects bottom-right) would cover
+   the button, so lift the button above it whenever the badge is on the page. */
+body:has(#nl-badge-frame) .fab {
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 72px);
+}
 .fab__ring {
   position: absolute;
   inset: 0;
