@@ -77,7 +77,7 @@ export function Hero() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1.2, ease, delay: 0.9 }}
           >
-            <Portrait className="hero__small-img" focus="center 18%" />
+            <Portrait className="hero__small-img" focus="47% 34%" />
             <figcaption className="hero__small-cap">
               <span className="script">Trisha</span>
               <span>{BUSINESS.title}</span>

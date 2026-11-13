@@ -36,7 +36,7 @@ export function ArtistIntroduction() {
       <div className="container about__grid">
         <div className="about__visual">
           <Reveal className="about__portrait">
-            <Portrait focus="center 20%" />
+            <Portrait focus="50% 24%" />
           </Reveal>
           <Reveal className="artist-card" delay={0.25}>
             <p className="artist-card__name">{BUSINESS.artist}</p>
