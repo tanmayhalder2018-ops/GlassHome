@@ -23,7 +23,8 @@ export function Services() {
           <Reveal delay={0.15} className="section-head__aside">
             <p>
               From the bride's first fitting to a quick festive motif for guests — every booking is planned around your
-              occasion, your outfit and the look you love.
+              occasion, your outfit and the look you love, in Maslandapur and across{' '}
+              <a href="#areas">Barasat, Madhyamgram and Kolkata</a>.
             </p>
             <Vine className="services__vine" />
           </Reveal>

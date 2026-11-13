@@ -18,6 +18,9 @@ export function Footer() {
             <p className="footer__place">
               <FlowerMark size={14} /> {BUSINESS.locality}, {BUSINESS.region}, {BUSINESS.country}
             </p>
+            <p className="footer__areas">
+              Bridal &amp; custom mehendi in Maslandapur, Barasat, Madhyamgram, Kolkata and North 24 Parganas.
+            </p>
           </div>
 
           <nav className="footer__nav" aria-label="Footer">
@@ -25,6 +28,8 @@ export function Footer() {
             {NAV_LINKS.map((l) => (
               <a key={l.id} href={`#${l.id}`}>{l.label}</a>
             ))}
+            <a href="#areas">Service Areas</a>
+            <a href="#faq">FAQ</a>
             <a href="#booking">Book Now</a>
           </nav>
 
