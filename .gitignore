@@ -3,3 +3,8 @@
 *.mp4
 *_chunks/
 __pycache__/
+
+# Mehendi by Trisha: original full-size photos (optimised copies live in public/images/work)
+mehendi-by-trisha/raw-photos/
+node_modules/
+dist/

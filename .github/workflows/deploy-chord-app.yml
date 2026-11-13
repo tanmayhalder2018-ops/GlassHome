@@ -1,9 +1,12 @@
-name: Deploy ChordSathi to GitHub Pages
+name: Deploy ChordSathi + Mehendi by Trisha to GitHub Pages
 
+# One GitHub Pages site serves both projects:
+#   ChordSathi           → https://tanmayhalder2018-ops.github.io/GlassHome/
+#   Mehendi by Trisha    → https://tanmayhalder2018-ops.github.io/GlassHome/mehendi/
 on:
   push:
     branches: [claude/song-graphic-video-youtube-jgzlyo]
-    paths: ['chord-app/**', '.github/workflows/deploy-chord-app.yml']
+    paths: ['chord-app/**', 'mehendi-by-trisha/**', '.github/workflows/deploy-chord-app.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,11 +26,29 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mehendi-by-trisha/package-lock.json
+      - name: Build Mehendi by Trisha
+        working-directory: mehendi-by-trisha
+        env:
+          VITE_SITE_URL: https://tanmayhalder2018-ops.github.io/GlassHome/mehendi
+        run: |
+          npm ci
+          npm run build -- --base=/GlassHome/mehendi/
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp -r chord-app/. _site/
+          cp -r mehendi-by-trisha/dist _site/mehendi
+          touch _site/.nojekyll
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: chord-app
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
