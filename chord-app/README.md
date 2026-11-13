@@ -9,7 +9,7 @@ A free chord finder that runs entirely in the browser. Nothing is uploaded.
 - A slider to control how often chords change (detection sensitivity)
 - Practice tools: speed 0.5×–1.25×, A–B loop between chords, ±5s skip, and keyboard shortcuts (Space, ←, →)
 - Export the chord sheet as a `.txt` file
-- **Live mode**: detect chords from the microphone in real time, with a pitch-class (chroma) meter and chord history
+- **Live / YouTube mode**: detect chords in real time from the mic, or from another browser tab such as a YouTube video (Chrome or Edge on a computer). Chords are logged with their times and can be copied as a chord sheet
 
 ## Install on your phone (PWA)
 1. Merge this branch into the default branch.
