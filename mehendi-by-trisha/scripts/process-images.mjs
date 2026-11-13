@@ -9,6 +9,10 @@
  * `public/images/work/<slug>-<width>.webp` and records the real size plus a
  * tiny blurred placeholder in `src/data/image-manifest.json`.
  * The original photos are never modified.
+ *
+ * Special case: `raw-photos/trisha-portrait.*` becomes
+ * `public/images/trisha-portrait.jpg` (high-quality JPEG, never cropped or
+ * stretched — the page frames it with CSS).
  */
 import { readdir, mkdir, writeFile, readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -33,6 +37,17 @@ if (!files.length) console.warn('No photos found in raw-photos/')
 for (const file of files) {
   const slug = path.parse(file).name.toLowerCase().replace(/[^a-z0-9-]+/g, '-')
   const input = path.join(SRC, file)
+  if (slug === 'trisha-portrait') {
+    const out = path.join(root, 'public', 'images', 'trisha-portrait.jpg')
+    await sharp(input)
+      .rotate()
+      .resize({ width: 1400, height: 1800, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 88, mozjpeg: true, chromaSubsampling: '4:4:4' })
+      .toFile(out)
+    const meta = await sharp(out).metadata()
+    console.log(`✓ portrait → public/images/trisha-portrait.jpg  ${meta.width}×${meta.height}`)
+    continue
+  }
   // .rotate() applies the phone's EXIF orientation so nothing appears sideways.
   const base = sharp(input).rotate()
   const meta = await base.metadata()

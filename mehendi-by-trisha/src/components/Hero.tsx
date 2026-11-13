@@ -5,6 +5,8 @@ import { Button } from './Button'
 import { Sprig, Mandala, FloatingLeaves, FlowerMark } from './Botanical'
 import { ease } from './Reveal'
 import { HERO_SLUG } from '../data/gallery'
+import { BUSINESS } from '../config/site'
+import { Portrait } from './Portrait'
 
 const line = (delay: number) => ({
   initial: { y: '105%' },
@@ -27,7 +29,7 @@ export function Hero() {
       <div className="container hero__grid">
         <div className="hero__copy">
           <m.p className="eyebrow" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.2 }}>
-            <span className="eyebrow__line" /> Mehendi Artist · Maslandapur, West Bengal
+            <span className="eyebrow__line" /> {BUSINESS.title}<span className="hero__eyebrow-place"> · {BUSINESS.locality}</span>
           </m.p>
 
           <h1 id="hero-title" className="hero__title">
@@ -68,15 +70,19 @@ export function Hero() {
           </m.div>
           <span className="hero__arch-line" aria-hidden="true" />
 
-          <m.div
+          <m.figure
             className="hero__small"
             style={{ y: smallY }}
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1.2, ease, delay: 0.9 }}
           >
-            <Img slug="floral-trail-garden-palm" alt="Floral mehendi trail on a palm, photographed in a garden" sizes="200px" focus="center 38%" />
-          </m.div>
+            <Portrait className="hero__small-img" focus="center 18%" />
+            <figcaption className="hero__small-cap">
+              <span className="script">Trisha</span>
+              <span>{BUSINESS.title}</span>
+            </figcaption>
+          </m.figure>
 
           <Sprig className="hero__sprig" delay={0.9} />
 

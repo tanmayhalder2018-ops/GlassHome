@@ -115,11 +115,11 @@ export function BookingForm() {
             <p className="eyebrow"><span className="eyebrow__line" /> Book Your Date</p>
           </Reveal>
           <h2 id="booking-title" className="section-title">
-            <RevealText text="Let's Create" /> <RevealText text="Something Beautiful." className="italic" delay={0.12} />
+            <RevealText text="Your Special Day" /> <RevealText text="Deserves Beautiful Art." className="italic" delay={0.12} />
           </h2>
           <Reveal delay={0.15}>
             <p className="section-intro">
-              Planning your wedding or special celebration? Let's discuss your mehendi requirements.
+              Planning your wedding, engagement, or special celebration? Get in touch with Trisha to discuss your custom mehendi requirements.
             </p>
           </Reveal>
           <ol className="booking__steps">

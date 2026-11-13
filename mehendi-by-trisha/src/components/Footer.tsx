@@ -14,6 +14,7 @@ export function Footer() {
           <div className="footer__brand">
             <Wordmark light />
             <p className="footer__tagline">{BUSINESS.tagline}</p>
+            <p className="footer__desc">{BUSINESS.description}</p>
             <p className="footer__place">
               <FlowerMark size={14} /> {BUSINESS.locality}, {BUSINESS.region}, {BUSINESS.country}
             </p>

@@ -14,7 +14,8 @@ Built with React, Vite, TypeScript, Framer Motion and Lucide icons.
 | Services text & photos | `src/data/services.ts` |
 | Artist biography | `src/components/ArtistIntroduction.tsx` → `BIO` |
 | Instagram-style grid photos | `src/components/InstagramSection.tsx` → `FEED` |
-| Website address (canonical, sitemap, social previews) | `.env` → `VITE_SITE_URL` |
+| Website address (canonical, sitemap, social previews) | `.env` → `VITE_SITE_URL` (empty = Netlify address is used automatically) |
+| **Trisha's portrait** (hero, About, artist card) | `public/images/trisha-portrait.jpg` — replace this file, or put the original in `raw-photos/trisha-portrait.jpg` and run `npm run images` |
 
 ## Adding or replacing gallery photos
 
@@ -45,6 +46,7 @@ base `mehendi-by-trisha`, command `npm run build`, publish `dist`.
 
 1. Netlify → *Add new site → Import an existing project* → choose this GitHub repository.
 2. Leave the build settings as detected from `netlify.toml` and deploy.
-3. Once the real address is known, update `VITE_SITE_URL` in `.env` (or set it as an
-   environment variable in Netlify) and redeploy so the canonical URL, sitemap and
-   social previews use it.
+3. No domain needs to be set yet: while `VITE_SITE_URL` is empty, a Netlify build uses
+   the site's Netlify address for the canonical URL, sitemap and social previews.
+   Once the real domain is live, set `VITE_SITE_URL` in `.env` (or as an environment
+   variable in Netlify → Site configuration → Environment variables) and redeploy.

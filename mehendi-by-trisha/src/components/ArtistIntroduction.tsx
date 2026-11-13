@@ -4,18 +4,19 @@ import { Img } from './Img'
 import { Reveal, RevealText } from './Reveal'
 import { Sprig, LeafMark, FlowerMark } from './Botanical'
 import { Button } from './Button'
-import { PORTRAIT_SLUG, CONES_SLUG } from '../data/gallery'
+import { CONES_SLUG } from '../data/gallery'
+import { BUSINESS } from '../config/site'
+import { Portrait } from './Portrait'
+import { MapPin } from 'lucide-react'
 
 /**
- * ARTIST INTRODUCTION
- * The biography text below is a warm starting point written from what is
- * known (Trisha, a mehendi artist in Maslandapur). Edit freely — add her
- * own story, years of practice or anything she'd like clients to know.
+ * ARTIST INTRODUCTION — edit the text below freely.
+ * (Title and location come from src/config/site.ts → BUSINESS.)
  */
+const HEADING = { first: 'Meet', second: 'Trisha' }
 const BIO = [
-  "Hi, I'm Trisha — a mehendi artist based in Maslandapur, West Bengal.",
-  'For me, mehendi is more than decoration. It is a quiet, unhurried art: a cone of henna, a steady hand and a design that grows line by line until it tells a story of its own. Every bride, every celebration and every pair of hands is different, so I love shaping each design around the person wearing it.',
-  'Whether you dream of a full bridal design with peacocks, mandalas and hidden initials, flowing Arabic florals, or a single delicate motif, I would love to create something that feels truly yours.',
+  'Welcome to Mehendi by Trisha, where creativity meets tradition.',
+  'Specialising in bridal and custom mehendi artistry, Trisha creates beautiful henna designs inspired by elegance, intricate details, and individual preferences. Every design is a unique expression of art, created to make your special moments even more memorable.',
 ]
 
 const VALUES = [
@@ -35,27 +36,35 @@ export function ArtistIntroduction() {
       <div className="container about__grid">
         <div className="about__visual">
           <Reveal className="about__portrait">
-            <Img slug={PORTRAIT_SLUG} alt="Portrait of Trisha, the mehendi artist behind Mehendi by Trisha" sizes="(min-width: 960px) 34vw, 78vw" focus="center 30%" />
+            <Portrait focus="center 20%" />
+          </Reveal>
+          <Reveal className="artist-card" delay={0.25}>
+            <p className="artist-card__name">{BUSINESS.artist}</p>
+            <p className="artist-card__title">{BUSINESS.title}</p>
+            <p className="artist-card__place"><MapPin size={13} strokeWidth={1.6} /> {BUSINESS.locality}, {BUSINESS.region}</p>
           </Reveal>
           <m.div className="about__cones" style={{ y: conesY }}>
             <Img slug={CONES_SLUG} alt="A fan of henna cones ready for a mehendi session" sizes="(min-width: 960px) 16vw, 38vw" focus="center 60%" />
           </m.div>
           <Sprig className="about__sprig" />
-          <p className="about__signature script" aria-hidden="true">Trisha</p>
-        </div>
+                  </div>
 
         <div className="about__copy">
           <Reveal>
-            <p className="eyebrow"><span className="eyebrow__line" /> About</p>
+            <p className="eyebrow"><span className="eyebrow__line" /> {BUSINESS.title}</p>
           </Reveal>
           <h2 id="about-title" className="section-title">
-            <RevealText text="The Artist" /> <RevealText text="Behind the Art" className="italic" delay={0.15} />
+            <RevealText text={HEADING.first} /> <RevealText text={HEADING.second} className="italic" delay={0.15} />
           </h2>
           {BIO.map((p, i) => (
             <Reveal key={i} delay={0.1 + i * 0.08}>
               <p className={i === 0 ? 'about__lead' : 'about__text'}>{p}</p>
             </Reveal>
           ))}
+
+          <Reveal delay={0.3}>
+            <p className="about__place"><MapPin size={15} strokeWidth={1.5} /> {BUSINESS.locality}, {BUSINESS.region}</p>
+          </Reveal>
 
           <ul className="about__values">
             {VALUES.map((v, i) => (

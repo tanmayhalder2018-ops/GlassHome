@@ -51,6 +51,7 @@ export function Contact() {
             <RevealText text="Mehendi" /> <RevealText text="by Trisha" className="italic" delay={0.1} />
           </h2>
           <Reveal delay={0.1}>
+            <p className="contact__title">{BUSINESS.title}</p>
             <address className="contact__address">
               {BUSINESS.locality}, {BUSINESS.region}, {BUSINESS.country}
             </address>

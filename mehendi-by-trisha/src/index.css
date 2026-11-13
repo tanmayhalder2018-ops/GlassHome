@@ -663,12 +663,51 @@ em {
   right: 0;
   bottom: 0;
   width: 38%;
+  margin: 0;
+  z-index: 2;
+}
+.hero__small-img {
   aspect-ratio: 1;
   border-radius: 50%;
-  overflow: hidden;
   border: 6px solid var(--ivory);
   box-shadow: 0 24px 50px -24px rgba(41, 42, 37, 0.5);
-  z-index: 2;
+}
+.hero__small-cap {
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 14px 7px;
+  background: var(--forest);
+  color: var(--cream);
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px -12px rgba(41, 42, 37, 0.6);
+}
+.hero__small-cap .script {
+  font-size: 1.35rem;
+  color: var(--gold-soft);
+  line-height: 0.9;
+}
+.hero__small-cap span:last-child {
+  font-size: 0.56rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+@media (max-width: 559px) {
+  .hero__small {
+    width: 40%;
+  }
+  .hero__small-cap {
+    padding: 4px 10px 5px;
+  }
+  .hero__small-cap span:last-child {
+    font-size: 0.48rem;
+    letter-spacing: 0.1em;
+  }
 }
 .hero__sprig {
   position: absolute;
@@ -791,7 +830,8 @@ em {
     letter-spacing: 0.24em;
     margin-bottom: 16px;
   }
-  .hero .eyebrow__line {
+  .hero .eyebrow__line,
+  .hero__eyebrow-place {
     display: none;
   }
   .hero__title {
@@ -897,6 +937,58 @@ em {
   overflow: hidden;
   box-shadow: 0 30px 60px -30px rgba(41, 42, 37, 0.55);
   z-index: 2;
+}
+.portrait img {
+  filter: saturate(0.94) contrast(1.02);
+}
+.artist-card {
+  position: absolute;
+  right: -4%;
+  bottom: 10%;
+  z-index: 3;
+  padding: 16px 22px 14px;
+  background: rgba(250, 247, 240, 0.94);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(180, 154, 104, 0.55);
+  border-radius: 4px;
+  box-shadow: 0 24px 50px -28px rgba(41, 42, 37, 0.6);
+  text-align: left;
+}
+.artist-card__name {
+  font-family: var(--script);
+  font-size: 2.4rem;
+  line-height: 0.9;
+  color: var(--gold);
+}
+.artist-card__title {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  color: var(--forest);
+  line-height: 1.2;
+  margin-top: 4px;
+}
+.artist-card__place {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.about__place {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--olive);
+}
+.about__place svg {
+  color: var(--gold);
 }
 .about__sprig {
   position: absolute;
@@ -1810,8 +1902,15 @@ em {
 }
 
 /* ═══════════ CONTACT ═══════════ */
+.contact__title {
+  margin-top: 14px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.35rem;
+  color: var(--olive);
+}
 .contact__address {
-  margin-top: 20px;
+  margin-top: 10px;
   font-size: 0.78rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
@@ -1932,6 +2031,12 @@ em {
   font-size: 1.5rem;
   color: var(--gold-soft);
   margin-top: 16px;
+}
+.footer__desc {
+  max-width: 26rem;
+  margin-top: 12px;
+  font-size: 0.92rem;
+  color: rgba(250, 247, 240, 0.62);
 }
 .footer__place {
   display: flex;

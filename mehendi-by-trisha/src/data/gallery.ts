@@ -126,7 +126,6 @@ export const GALLERY: GalleryItem[] = [
 ]
 
 /** Non-gallery photos used elsewhere on the site. */
-export const PORTRAIT_SLUG = 'trisha-portrait'
 export const CONES_SLUG = 'henna-cones'
 export const HERO_SLUG = 'bridal-peacock-elephant-palm'
 

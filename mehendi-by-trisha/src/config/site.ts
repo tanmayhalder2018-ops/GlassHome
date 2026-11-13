@@ -6,14 +6,10 @@
 
 /**
  * WhatsApp number: country code 91 + 10-digit mobile number,
- * digits only, no "+", spaces or dashes.  Example: "919876543210"
- *
- * While this still says REPLACE_WITH_PHONE_NUMBER, every WhatsApp button
- * opens WhatsApp with the message ready and lets the visitor pick the chat,
- * so nothing on the site is broken — but customers can't reach Trisha
- * directly until the real number is filled in.
+ * digits only, no "+", spaces or dashes.  (+91 97327 17192)
+ * Every WhatsApp button on the site uses this one value.
  */
-export const WHATSAPP_NUMBER = 'REPLACE_WITH_PHONE_NUMBER'
+export const WHATSAPP_NUMBER = '919732717192'
 
 export const DEFAULT_WHATSAPP_MESSAGE =
   'Hello Trisha! I visited your Mehendi by Trisha website and would like to enquire about booking your mehendi services. Please share your availability and pricing.'
@@ -23,10 +19,10 @@ export const DEFAULT_WHATSAPP_MESSAGE =
  * Paste full profile URLs, e.g. 'https://www.instagram.com/your.username/'
  */
 export const SOCIAL = {
-  instagram: '',
+  instagram: 'https://www.instagram.com/myself_._trisha/',
   /** Shown as "@handle" next to the Instagram link, without the @. */
-  instagramHandle: '',
-  facebook: '',
+  instagramHandle: 'myself_._trisha',
+  facebook: 'https://www.facebook.com/share/1GMscLGVvd/',
 }
 
 /**
@@ -42,8 +38,14 @@ export const BUSINESS = {
   locality: 'Maslandapur',
   region: 'West Bengal',
   country: 'India',
+  title: 'Bridal & Custom Mehendi Artist',
   tagline: 'Beautiful Henna. Unforgettable Moments.',
+  description:
+    'Creating beautiful bridal and custom mehendi designs with artistic details, creativity, and a personal touch for your special occasions.',
 }
+
+/** Trisha's portrait. Replace this file to change the photo everywhere on the site. */
+export const PORTRAIT_SRC = `${import.meta.env.BASE_URL}images/trisha-portrait.jpg`
 
 const configured = /^91\d{10}$/.test(WHATSAPP_NUMBER)
 export const isWhatsAppConfigured = configured
