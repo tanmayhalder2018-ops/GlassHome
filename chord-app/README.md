@@ -5,6 +5,7 @@ A free chord finder that runs entirely in the browser. Nothing is uploaded.
 ## Features
 - **Song mode**: open any audio or video file and get a chord timeline synced to playback
 - Large current/next chord display with **guitar and/or piano** diagrams (choose Guitar / Piano / Both) and chord notes
+- **Tempo (BPM), beats and time signature** detection: 2/4, 3/4, 4/4, 5/4, 6/8, 9/8 and 12/8 are found automatically, and 5/8, 7/8 and 7/4 can be picked by hand. Chords snap to beats and the chord sheet is laid out in bars, with a live beat counter. Controls let you halve or double the tempo, choose the time signature, and move the bar lines.
 - Key detection, transpose (±11), capo (0–7), and a "simple chords" mode (major/minor only)
 - A slider to control how often chords change (detection sensitivity)
 - Practice tools: speed 0.5×–1.25×, A–B loop between chords, ±5s skip, and keyboard shortcuts (Space, ←, →)
@@ -29,5 +30,9 @@ Open `index.html` in a browser. To use the mic, serve the folder over https or l
     # open http://localhost:8000
 
 ## How it works
+Rhythm: log spectral-flux onset envelope → tempo from autocorrelation (harmonic comb, tempo prior, 3:2 beat-salience check)
+→ dynamic-programming beat tracker → beats-per-bar and downbeat from where harmony and accents change, with a triplet-feel test for compound meters.
+Chords are then decoded per beat, with chord changes favoured on downbeats.
+
 FFT → peak-picked chroma + bass chroma → template matching (maj, m, 7, m7, maj7, sus4, dim)
 → Viterbi smoothing with a chord-change penalty. The key is estimated with Krumhansl–Schmuckler profiles.
