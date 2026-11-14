@@ -213,6 +213,10 @@ button,select,input{font:inherit;color:inherit}
 .howto b{color:var(--fg)}
 
 footer{color:var(--muted);font-size:12px;text-align:center;margin-top:8px}
+footer p{margin:0}
+footer .credit{margin-top:6px;font-size:11.5px;letter-spacing:.02em}
+footer .credit b{color:var(--fg);font-weight:600}
+footer .ver{font-family:var(--f-mono);padding:1px 6px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line)}
 
 @media (max-width:640px){
   .stage{grid-template-columns:1fr;justify-items:center;text-align:center}
@@ -392,7 +396,10 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin-top:8px}
     </div>
   </section>
 
-  <footer>Chords are estimated by signal analysis and can be wrong. Your audio stays on your device.</footer>
+  <footer>
+    <p>Chords are estimated by signal analysis and can be wrong. Your audio stays on your device.</p>
+    <p class="credit">ChordSathi <span class="ver">v1.6.0</span> · App design by <b>Tanmay Halder</b></p>
+  </footer>
 </div>
 
 <script>
