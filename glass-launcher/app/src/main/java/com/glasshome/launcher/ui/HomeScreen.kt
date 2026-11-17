@@ -88,6 +88,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -103,6 +105,7 @@ import com.glasshome.launcher.data.AppInfo
 import com.glasshome.launcher.data.AppRepository
 import com.glasshome.launcher.data.LauncherPrefs
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
@@ -174,6 +177,8 @@ fun LauncherApp(
     val bannerDismissed by prefs.bannerDismissed.collectAsState()
 
     val scope = rememberCoroutineScope()
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val overlay = remember { OverlayController(scope) }
     val overlayOpen by remember { derivedStateOf { overlay.progress > 0f } }
     var editMode by remember { mutableStateOf(false) }
@@ -227,7 +232,18 @@ fun LauncherApp(
 
     fun launchApp(app: AppInfo, r: Rect) {
         if (editMode) return
+        // Hide the keyboard first so its own animation doesn't fight the app opening.
+        focusManager.clearFocus(force = true)
+        keyboard?.hide()
         Actions.launch(activity, app, r)
+        // Tidy up while the app is still covering us, so the frame Android shows
+        // when we come back is the clean home screen (not a half-closed sheet).
+        scope.launch {
+            delay(180)
+            overlay.snapClosed()
+            menu = null
+            menuAnim.snapTo(0f)
+        }
     }
 
     fun playUnlock() {
@@ -306,12 +322,11 @@ fun LauncherApp(
                         pendingUnlock[0] = false
                         stopped = false
                         playUnlock()
-                    } else if (stopped && !pendingUnlock[0]) {
+                    } else {
+                        // Returning from an app: Android plays its own close animation.
+                        // Don't run a second one on top of it (that was the glitch).
                         stopped = false
-                        scope.launch {
-                            entrance.snapTo(0f)
-                            entrance.animateTo(1f, spring(dampingRatio = 0.82f, stiffness = 230f))
-                        }
+                        scope.launch { entrance.snapTo(1f) }
                     }
                 }
                 Lifecycle.Event.ON_RESUME -> if (pendingUnlock[0] && km?.isKeyguardLocked != true) {

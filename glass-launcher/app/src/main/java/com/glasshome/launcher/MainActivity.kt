@@ -59,7 +59,8 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         widgets.startListening()
-        repo.reload(null)
+        // Rescan a moment later so it never competes with the return animation.
+        window.decorView.postDelayed({ repo.reload(null) }, 900)
     }
 
     override fun onResume() {
