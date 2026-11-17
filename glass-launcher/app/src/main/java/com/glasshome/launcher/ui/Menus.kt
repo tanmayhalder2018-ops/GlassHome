@@ -29,6 +29,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -147,7 +149,7 @@ fun SettingsSheet(
     progress: () -> Float,
     wallpaperId: Int,
     showLabels: Boolean,
-    iconScale: Float,
+    layout: LayoutSettings,
     hiddenCount: Int,
     hasAccess: Boolean,
     lockToo: Boolean,
@@ -156,7 +158,6 @@ fun SettingsSheet(
     onWallpaper: (Int) -> Unit,
     onPickPhoto: () -> Unit,
     onLabels: (Boolean) -> Unit,
-    onIconScale: (Float) -> Unit,
     onRestoreHidden: () -> Unit,
     onDefaultHome: () -> Unit,
     onDismiss: () -> Unit,
@@ -260,23 +261,7 @@ fun SettingsSheet(
                     )
                 }
                 Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
-                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Icon size", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                    Row(
-                        Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.1f)).padding(3.dp),
-                    ) {
-                        listOf("S" to 0.85f, "M" to 1f, "L" to 1.15f).forEach { (n, v) ->
-                            val sel = kotlin.math.abs(iconScale - v) < 0.01f
-                            Box(
-                                Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (sel) Color.White.copy(alpha = 0.28f) else Color.Transparent)
-                                    .clickable { onIconScale(v) }
-                                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                            ) { Text(n, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
-                        }
-                    }
-                }
+                LayoutRows(layout)
                 if (hiddenCount > 0) {
                     Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
                     Row(
@@ -300,6 +285,93 @@ fun SettingsSheet(
             )
         }
     }
+}
+
+/** Everything needed to edit icon sizes and grid counts. 0 means "Auto". */
+class LayoutSettings(
+    val homeScale: Float,
+    val homeCols: Int,
+    val homeRows: Int,
+    val autoCols: Int,
+    val autoRows: Int,
+    val colRange: IntRange,
+    val rowRange: IntRange,
+    val libScale: Float,
+    val libCols: Int,
+    val autoLibCols: Int,
+    val libRange: IntRange,
+    val onHomeScale: (Float) -> Unit,
+    val onHomeCols: (Int) -> Unit,
+    val onHomeRows: (Int) -> Unit,
+    val onLibScale: (Float) -> Unit,
+    val onLibCols: (Int) -> Unit,
+)
+
+@Composable
+private fun LayoutRows(l: LayoutSettings) {
+    SizeRow("Home icon size", l.homeScale, l.onHomeScale)
+    Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
+    StepperRow("Home columns", l.homeCols, l.autoCols, l.colRange, l.onHomeCols)
+    Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
+    StepperRow("Home rows", l.homeRows, l.autoRows, l.rowRange, l.onHomeRows)
+    Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
+    SizeRow("App Library icon size", l.libScale, l.onLibScale)
+    Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
+    StepperRow("App Library columns", l.libCols, l.autoLibCols, l.libRange, l.onLibCols)
+}
+
+@Composable
+private fun SizeRow(title: String, value: Float, onChange: (Float) -> Unit) {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
+            Text("${(value * 100).roundToInt()}%", color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp)
+        }
+        Slider(
+            value = value,
+            onValueChange = { onChange((it * 20).roundToInt() / 20f) },
+            valueRange = 0.6f..1.5f,
+            steps = 17,
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color(0xFF0A84FF),
+                inactiveTrackColor = Color.White.copy(alpha = 0.2f),
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+            ),
+        )
+    }
+}
+
+/** − value + ; going below the minimum switches back to Auto. */
+@Composable
+private fun StepperRow(title: String, value: Int, auto: Int, range: IntRange, onChange: (Int) -> Unit) {
+    Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        val shown = if (value == 0) "Auto · $auto" else "$value"
+        Row(
+            Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.1f)),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StepButton("−") {
+                val cur = if (value == 0) auto else value
+                onChange(if (value != 0 && cur <= range.first) 0 else (cur - 1).coerceAtLeast(range.first))
+            }
+            Text(shown, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp))
+            StepButton("+") {
+                val cur = if (value == 0) auto else value
+                onChange((cur + 1).coerceAtMost(range.last))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepButton(t: String, onClick: () -> Unit) {
+    Box(
+        Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Text(t, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium) }
 }
 
 @Composable

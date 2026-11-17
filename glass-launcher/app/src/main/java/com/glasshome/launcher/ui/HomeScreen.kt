@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
@@ -136,6 +137,9 @@ private class Profile(phone: Boolean) {
     val todayCols = if (phone) 1 else 2
     val colRange = if (phone) 4..5 else 4..9
     val rowRange = if (phone) 4..7 else 3..7
+    val userColRange = if (phone) 3..7 else 3..12
+    val userRowRange = if (phone) 3..9 else 3..9
+    val libRange = if (phone) 3..7 else 3..12
     val cellW = if (phone) 84.dp else 150.dp
     val cellExtraH = if (phone) 50.dp else 62.dp
     val cellMinH = if (phone) 100.dp else 118.dp
@@ -160,6 +164,10 @@ fun LauncherApp(
     val wallpaperVersion by prefs.wallpaperVersion.collectAsState()
     val showLabels by prefs.showLabels.collectAsState()
     val iconScale by prefs.iconScale.collectAsState()
+    val homeColsPref by prefs.homeCols.collectAsState()
+    val homeRowsPref by prefs.homeRows.collectAsState()
+    val libColsPref by prefs.libCols.collectAsState()
+    val libIconScale by prefs.libIconScale.collectAsState()
     val homeWidgets by prefs.homeWidgets.collectAsState()
     val todayWidgets by prefs.todayWidgets.collectAsState()
     val lockToo by prefs.lockToo.collectAsState()
@@ -367,14 +375,33 @@ fun LauncherApp(
         val topInset = with(density) { insets.getTop(this).toDp() }
         val bottomInset = with(density) { insets.getBottom(this).toDp() }
         val dotsH = 30.dp
-        val dockArea = iconSize + 24.dp + 14.dp
+        // Dock icons shrink if the dock would not fit the screen width.
+        val dockN = dockApps.size.coerceAtLeast(1)
+        val dockIcon = minOf(iconSize, (maxWidth - 24.dp - 28.dp - profile.dockSpacing * (dockN - 1)) / dockN)
+        val dockArea = dockIcon + 24.dp + 14.dp
         val gridH = maxHeight - topInset - bottomInset - profile.topReserve - dotsH - dockArea
         val hPad = if (phone) 14.dp else if (maxWidth > 900.dp) 48.dp else 28.dp
         val gridW = maxWidth - hPad * 2
         val cellW = profile.cellW * iconScale.coerceAtLeast(0.9f)
         val cellH = (iconSize + profile.cellExtraH).coerceAtLeast(profile.cellMinH)
-        val cols = (gridW / cellW).toInt().coerceIn(profile.colRange.first, profile.colRange.last)
-        val rows = (gridH / cellH).toInt().coerceIn(profile.rowRange.first, profile.rowRange.last)
+        val autoCols = (gridW / cellW).toInt().coerceIn(profile.colRange.first, profile.colRange.last)
+        val autoRows = (gridH / cellH).toInt().coerceIn(profile.rowRange.first, profile.rowRange.last)
+        val cols = if (homeColsPref > 0) homeColsPref else autoCols
+        val rows = if (homeRowsPref > 0) homeRowsPref else autoRows
+        // Icons shrink to fit when the user asks for a denser grid.
+        val cellWAct = gridW / cols
+        val cellHAct = gridH / rows
+        val labelSpace = if (showLabels) 32.dp else 8.dp
+        val homeIcon = minOf(iconSize, cellWAct - 14.dp, cellHAct - labelSpace).coerceAtLeast(30.dp)
+        val homeLabelW = cellWAct - 4.dp
+
+        // App Library sizing.
+        val libIcon = (profile.iconBase * libIconScale).dp
+        val libWidth = minOf(maxWidth, 1180.dp) - 48.dp
+        val autoLibCols = (libWidth / (libIcon + profile.searchCellExtra)).toInt().coerceAtLeast(3)
+        val libCols = if (libColsPref > 0) libColsPref else autoLibCols
+        val libCell = libWidth / libCols
+        val libIconEff = minOf(libIcon, libCell - 14.dp).coerceAtLeast(30.dp)
         val widgetRows = if (homeWidgets.isNotEmpty() && rows >= 4) 2 else 0
         val grid = Grid(cols, rows, widgetRows)
         val maxHomeWidgets = if (phone) 2 else (cols / 2 - 1).coerceAtLeast(2)
@@ -543,7 +570,8 @@ fun LauncherApp(
                                     now = now,
                                     controller = widgets,
                                     hPad = hPad,
-                                    iconSize = iconSize,
+                                    iconSize = homeIcon,
+                                    labelWidth = homeLabelW,
                                     showLabels = showLabels,
                                     editMode = editMode,
                                     onEnterEdit = { editMode = true },
@@ -562,7 +590,7 @@ fun LauncherApp(
                         ) {
                             Dock(
                                 apps = dockApps,
-                                iconSize = iconSize,
+                                iconSize = dockIcon,
                                 spacing = profile.dockSpacing,
                                 editMode = editMode,
                                 onLaunch = ::launchApp,
@@ -602,8 +630,9 @@ fun LauncherApp(
                 SpotlightOverlay(
                     ctrl = overlay,
                     apps = apps,
-                    iconSize = iconSize,
-                    cellMin = iconSize + profile.searchCellExtra,
+                    iconSize = libIconEff,
+                    columns = GridCells.Fixed(libCols),
+                    labelWidth = libCell - 4.dp,
                     onLaunch = { a, r -> launchApp(a, r) },
                     onLongClick = { a, r -> showMenu(a, r, MenuSource.Library) },
                     onWebSearch = { Actions.webSearch(ctx, it) },
@@ -615,7 +644,24 @@ fun LauncherApp(
                     progress = { settingsAnim.value },
                     wallpaperId = wallpaperId,
                     showLabels = showLabels,
-                    iconScale = iconScale,
+                    layout = LayoutSettings(
+                        homeScale = iconScale,
+                        homeCols = homeColsPref,
+                        homeRows = homeRowsPref,
+                        autoCols = autoCols,
+                        autoRows = autoRows,
+                        colRange = profile.userColRange,
+                        rowRange = profile.userRowRange,
+                        libScale = libIconScale,
+                        libCols = libColsPref,
+                        autoLibCols = autoLibCols,
+                        libRange = profile.libRange,
+                        onHomeScale = prefs::setIconScale,
+                        onHomeCols = prefs::setHomeCols,
+                        onHomeRows = prefs::setHomeRows,
+                        onLibScale = prefs::setLibIconScale,
+                        onLibCols = prefs::setLibCols,
+                    ),
                     hiddenCount = hidden.size,
                     hasAccess = hasAccess,
                     lockToo = lockToo,
@@ -624,7 +670,6 @@ fun LauncherApp(
                     onWallpaper = { i -> applyWallpaper({ Wallpapers.applyPreset(ctx, prefs, i, lockToo) }, i) },
                     onPickPhoto = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     onLabels = prefs::setShowLabels,
-                    onIconScale = prefs::setIconScale,
                     onRestoreHidden = prefs::unhideAll,
                     onDefaultHome = { Actions.homeSettings(ctx) },
                     onDismiss = { settingsOpen = false },
@@ -776,6 +821,7 @@ private fun HomePage(
     controller: WidgetController,
     hPad: Dp,
     iconSize: Dp,
+    labelWidth: Dp,
     showLabels: Boolean,
     editMode: Boolean,
     onEnterEdit: () -> Unit,
@@ -835,6 +881,7 @@ private fun HomePage(
                                     onClick = { rect -> onLaunch(app, rect) },
                                     onLongClick = { rect -> if (!edit) onMenu(app, rect) },
                                     onRemove = { onRemove(app) },
+                                    labelWidth = labelWidth,
                                 )
                             }
                         }

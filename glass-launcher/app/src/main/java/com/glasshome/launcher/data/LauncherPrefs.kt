@@ -106,6 +106,21 @@ class LauncherPrefs(context: Context) {
         sp.edit().putBoolean("labels", v).apply()
     }
 
+    private val _homeCols = MutableStateFlow(sp.getInt("home_cols", 0))
+    val homeCols: StateFlow<Int> = _homeCols
+    private val _homeRows = MutableStateFlow(sp.getInt("home_rows", 0))
+    val homeRows: StateFlow<Int> = _homeRows
+    private val _libCols = MutableStateFlow(sp.getInt("lib_cols", 0))
+    val libCols: StateFlow<Int> = _libCols
+    private val _libIconScale = MutableStateFlow(sp.getFloat("lib_icon_scale", 1f))
+    val libIconScale: StateFlow<Float> = _libIconScale
+
+    /** 0 = automatic. */
+    fun setHomeCols(v: Int) { _homeCols.value = v; sp.edit().putInt("home_cols", v).apply() }
+    fun setHomeRows(v: Int) { _homeRows.value = v; sp.edit().putInt("home_rows", v).apply() }
+    fun setLibCols(v: Int) { _libCols.value = v; sp.edit().putInt("lib_cols", v).apply() }
+    fun setLibIconScale(v: Float) { _libIconScale.value = v; sp.edit().putFloat("lib_icon_scale", v).apply() }
+
     fun setIconScale(v: Float) {
         _iconScale.value = v
         sp.edit().putFloat("icon_scale", v).apply()

@@ -125,7 +125,8 @@ fun SpotlightOverlay(
     ctrl: OverlayController,
     apps: List<AppInfo>,
     iconSize: Dp,
-    cellMin: Dp,
+    columns: GridCells,
+    labelWidth: Dp,
     onLaunch: (AppInfo, androidx.compose.ui.geometry.Rect) -> Unit,
     onLongClick: (AppInfo, androidx.compose.ui.geometry.Rect) -> Unit,
     onWebSearch: (String) -> Unit,
@@ -218,7 +219,7 @@ fun SpotlightOverlay(
             Spacer(Modifier.height(14.dp))
             val imeBottom = with(density) { WindowInsets.ime.getBottom(this).toDp() }
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(cellMin),
+                columns = columns,
                 modifier = Modifier
                     .widthIn(max = 1180.dp)
                     .fillMaxWidth()
@@ -253,6 +254,7 @@ fun SpotlightOverlay(
                             jiggle = false,
                             onClick = { r -> onLaunch(app, r) },
                             onLongClick = { r -> onLongClick(app, r) },
+                            labelWidth = labelWidth,
                         )
                     }
                 }

@@ -89,6 +89,7 @@ fun AppIcon(
     onLongClick: (Rect) -> Unit,
     modifier: Modifier = Modifier,
     onRemove: (() -> Unit)? = null,
+    labelWidth: Dp = Dp.Unspecified,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -102,7 +103,7 @@ fun AppIcon(
     val rotation = if (jiggle) rememberJiggle(app.key) else NoRotation
 
     Column(
-        modifier.width(if (showLabel) iconSize + 30.dp else iconSize),
+        modifier.width(if (!showLabel) iconSize else if (labelWidth != Dp.Unspecified) maxOf(labelWidth, iconSize) else iconSize + 30.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
