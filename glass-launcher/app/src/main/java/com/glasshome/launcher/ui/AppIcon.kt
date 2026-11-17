@@ -65,12 +65,12 @@ val LabelStyle = TextStyle(
 )
 
 @Composable
-private fun rememberJiggle(seed: String): State<Float> {
+internal fun rememberJiggle(seed: String, amount: Float = 2.2f): State<Float> {
     val t = rememberInfiniteTransition(label = "jiggle")
     val dur = 115 + (seed.hashCode() and 0x7FFFFFFF) % 40
     return t.animateFloat(
-        initialValue = -2.2f,
-        targetValue = 2.2f,
+        initialValue = -amount,
+        targetValue = amount,
         animationSpec = infiniteRepeatable(tween(dur, easing = LinearEasing), RepeatMode.Reverse),
         label = "rot",
     )

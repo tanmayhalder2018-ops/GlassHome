@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -147,6 +149,10 @@ fun SettingsSheet(
     showLabels: Boolean,
     iconScale: Float,
     hiddenCount: Int,
+    hasAccess: Boolean,
+    lockToo: Boolean,
+    onRequestAccess: () -> Unit,
+    onLockToo: (Boolean) -> Unit,
     onWallpaper: (Int) -> Unit,
     onPickPhoto: () -> Unit,
     onLabels: (Boolean) -> Unit,
@@ -167,6 +173,7 @@ fun SettingsSheet(
     ) {
         Column(
             Modifier
+                .statusBarsPadding()
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(16.dp)
                 .widthIn(max = 600.dp)
@@ -178,6 +185,7 @@ fun SettingsSheet(
                 .background(Color(0xEB1C1C1E))
                 .border(0.6.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(32.dp))
                 .pointerInput(Unit) { detectTapGestures { } }
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -217,7 +225,32 @@ fun SettingsSheet(
                     Text("Photo", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
                 }
             }
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(12.dp))
+            Group {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Also set on Lock Screen", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = lockToo, onCheckedChange = onLockToo,
+                        colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFF30D158), checkedThumbColor = Color.White),
+                    )
+                }
+                Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
+                Row(
+                    Modifier.fillMaxWidth().clickable(enabled = !hasAccess, onClick = onRequestAccess).padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Use my system wallpaper", color = Color.White, fontSize = 16.sp)
+                        Text(
+                            if (hasAccess) "On — blur and unlock effects use your wallpaper"
+                            else "Allow access so glass blur and the unlock zoom work with any wallpaper",
+                            color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, lineHeight = 16.sp,
+                        )
+                    }
+                    Text(if (hasAccess) "Allowed" else "Allow", color = if (hasAccess) Color(0xFF30D158) else Color(0xFF0A84FF), fontSize = 15.sp)
+                }
+            }
+            Spacer(Modifier.height(14.dp))
             Group {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Show app names", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
@@ -262,7 +295,7 @@ fun SettingsSheet(
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                "Swipe down to search · Swipe up for App Library · Swipe down from the top edge for notifications · Long-press an icon for options, or empty space to edit",
+                "Swipe right from the first page for Today widgets · Swipe down to search · Swipe up for App Library · Swipe down from the top edge for notifications · Long-press an icon for options, or empty space to edit",
                 color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, lineHeight = 17.sp,
             )
         }

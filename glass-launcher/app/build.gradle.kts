@@ -12,8 +12,20 @@ android {
         applicationId = "com.glasshome.launcher"
         minSdk = 31
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
+    }
+
+    flavorDimensions += "device"
+    productFlavors {
+        create("tab") {
+            dimension = "device"
+            buildConfigField("boolean", "PHONE", "false")
+        }
+        create("phone") {
+            dimension = "device"
+            buildConfigField("boolean", "PHONE", "true")
+        }
     }
 
     // One fixed key so every new build installs over the previous one.
@@ -47,6 +59,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

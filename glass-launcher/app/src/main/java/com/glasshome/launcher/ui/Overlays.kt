@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -124,7 +125,7 @@ fun SpotlightOverlay(
     ctrl: OverlayController,
     apps: List<AppInfo>,
     iconSize: Dp,
-    showLabels: Boolean,
+    cellMin: Dp,
     onLaunch: (AppInfo, androidx.compose.ui.geometry.Rect) -> Unit,
     onLongClick: (AppInfo, androidx.compose.ui.geometry.Rect) -> Unit,
     onWebSearch: (String) -> Unit,
@@ -136,7 +137,7 @@ fun SpotlightOverlay(
     val density = LocalDensity.current
     val dist = with(density) { 520.dp.toPx() }
 
-    val mostlyOpen = ctrl.progress > 0.6f
+    val mostlyOpen by remember { derivedStateOf { ctrl.progress > 0.6f } }
     LaunchedEffect(mostlyOpen) {
         if (mostlyOpen && ctrl.wantsKeyboard) {
             runCatching { focus.requestFocus() }
@@ -146,7 +147,6 @@ fun SpotlightOverlay(
             keyboard?.hide()
         }
     }
-    LaunchedEffect(ctrl.progress == 0f) { if (ctrl.progress == 0f) query = "" }
 
     val connection = remember(ctrl) {
         object : NestedScrollConnection {
@@ -218,7 +218,7 @@ fun SpotlightOverlay(
             Spacer(Modifier.height(14.dp))
             val imeBottom = with(density) { WindowInsets.ime.getBottom(this).toDp() }
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(iconSize + 46.dp),
+                columns = GridCells.Adaptive(cellMin),
                 modifier = Modifier
                     .widthIn(max = 1180.dp)
                     .fillMaxWidth()

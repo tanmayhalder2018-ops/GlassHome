@@ -9,7 +9,16 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import android.annotation.SuppressLint
+import android.app.WallpaperManager
+import android.content.Intent
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
+import android.os.Environment
+import android.provider.Settings
+import android.view.WindowManager
+import androidx.core.graphics.drawable.toBitmap
+import com.glasshome.launcher.data.LauncherPrefs
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import java.io.File
@@ -69,32 +78,78 @@ object Wallpapers {
         return bmp
     }
 
-    private fun customFile(ctx: Context) = File(ctx.filesDir, "wallpaper.jpg")
+    private fun copyFile(ctx: Context) = File(ctx.filesDir, "wallpaper.jpg")
 
-    fun saveCustom(ctx: Context, uri: Uri): Boolean = runCatching {
+    /** True when Android lets us read the system wallpaper (needed for blur over it). */
+    fun hasSystemAccess(): Boolean = Environment.isExternalStorageManager()
+
+    fun accessIntent(ctx: Context): Intent =
+        Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + ctx.packageName))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    fun systemId(ctx: Context): Int =
+        runCatching { WallpaperManager.getInstance(ctx).getWallpaperId(WallpaperManager.FLAG_SYSTEM) }.getOrDefault(-1)
+
+    private fun screenMax(ctx: Context): Int {
+        val b = ctx.getSystemService(WindowManager::class.java).maximumWindowMetrics.bounds
+        return max(b.width(), b.height())
+    }
+
+    /** Renders a preset at full screen size and sets it as the system (and optionally lock) wallpaper. */
+    fun applyPreset(ctx: Context, prefs: LauncherPrefs, index: Int, lockToo: Boolean): Boolean = runCatching {
+        val bmp = render(presets[index.coerceIn(0, presets.lastIndex)], screenMax(ctx).coerceIn(1024, 3200))
+        applyBitmap(ctx, prefs, bmp, lockToo)
+    }.getOrDefault(false)
+
+    fun applyPhoto(ctx: Context, prefs: LauncherPrefs, uri: Uri, lockToo: Boolean): Boolean = runCatching {
         val src = ImageDecoder.createSource(ctx.contentResolver, uri)
         val bmp = ImageDecoder.decodeBitmap(src) { decoder, info, _ ->
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
             val longest = max(info.size.width, info.size.height)
             var sample = 1
-            while (longest / (sample * 2) >= 2400) sample *= 2
+            while (longest / (sample * 2) >= 2800) sample *= 2
             decoder.setTargetSampleSize(sample)
         }
-        customFile(ctx).outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 92, it) }
-        true
+        applyBitmap(ctx, prefs, bmp, lockToo)
     }.getOrDefault(false)
 
-    /** Builds the sharp wallpaper and a pre-blurred copy used by every glass surface. */
-    fun load(ctx: Context, id: Int, maxDim: Int): WallpaperSet {
-        val full: Bitmap = if (id < 0) {
-            customFile(ctx).takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
-                ?: render(presets[0], (maxDim / 2).coerceAtLeast(256))
-        } else {
-            render(presets[id.coerceIn(0, presets.lastIndex)], (maxDim / 2).coerceAtLeast(256))
+    private fun applyBitmap(ctx: Context, prefs: LauncherPrefs, bmp: Bitmap, lockToo: Boolean): Boolean {
+        val wm = WallpaperManager.getInstance(ctx)
+        val flags = WallpaperManager.FLAG_SYSTEM or (if (lockToo) WallpaperManager.FLAG_LOCK else 0)
+        wm.setBitmap(bmp, null, true, flags)
+        copyFile(ctx).outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+        prefs.copyWallpaperId = systemId(ctx)
+        return true
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun readSystem(ctx: Context): Bitmap? = runCatching {
+        val wm = WallpaperManager.getInstance(ctx)
+        if (wm.wallpaperInfo != null) return null // live wallpaper: let the system draw it
+        val d = wm.drawable ?: return null
+        var b = (d as? BitmapDrawable)?.bitmap ?: d.toBitmap()
+        if (b.config == Bitmap.Config.HARDWARE) b = b.copy(Bitmap.Config.ARGB_8888, false)
+        val longest = max(b.width, b.height)
+        if (longest > 3200) {
+            val f = 3200f / longest
+            b = Bitmap.createScaledBitmap(b, (b.width * f).roundToInt(), (b.height * f).roundToInt(), true)
         }
-        val blurred = blur(full)
-        full.prepareToDraw()
-        return WallpaperSet(full.asImageBitmap(), blurred.asImageBitmap())
+        b
+    }.getOrNull()
+
+    /**
+     * Finds the picture that is really on the system home screen.
+     * Returns null when we can't read it: the launcher is then transparent and Android draws the wallpaper itself.
+     */
+    fun resolve(ctx: Context, prefs: LauncherPrefs): WallpaperSet? {
+        val bmp = when {
+            hasSystemAccess() -> readSystem(ctx)
+            prefs.copyWallpaperId == systemId(ctx) && copyFile(ctx).exists() -> BitmapFactory.decodeFile(copyFile(ctx).path)
+            else -> null
+        } ?: return null
+        val blurred = blur(bmp)
+        bmp.prepareToDraw()
+        return WallpaperSet(bmp.asImageBitmap(), blurred.asImageBitmap())
     }
 
     private fun blur(src: Bitmap): Bitmap {

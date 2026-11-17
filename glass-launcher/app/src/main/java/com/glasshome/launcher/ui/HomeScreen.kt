@@ -1,5 +1,13 @@
 package com.glasshome.launcher.ui
 
+import android.app.KeyguardManager
+import android.app.WallpaperManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -11,6 +19,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -29,12 +38,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
@@ -43,13 +56,18 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,9 +87,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -80,34 +101,58 @@ import com.glasshome.launcher.MainActivity
 import com.glasshome.launcher.data.AppInfo
 import com.glasshome.launcher.data.AppRepository
 import com.glasshome.launcher.data.LauncherPrefs
-import com.glasshome.launcher.data.MAX_DOCK
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.max
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 private val PreferredDock = listOf(
     "com.sec.android.app.sbrowser", "com.android.chrome", "com.google.android.youtube",
-    "com.google.android.gm", "com.samsung.android.messaging", "com.whatsapp",
-    "com.sec.android.gallery3d", "com.google.android.apps.photos", "com.sec.android.app.camera",
-    "com.spotify.music", "com.google.android.apps.maps", "com.android.settings",
+    "com.google.android.gm", "com.samsung.android.messaging", "com.google.android.apps.messaging",
+    "com.whatsapp", "com.oneplus.gallery", "com.sec.android.gallery3d", "com.google.android.apps.photos",
+    "com.oplus.camera", "com.sec.android.app.camera", "com.spotify.music", "com.google.android.dialer",
+    "com.android.settings",
 )
 
-private fun defaultDock(apps: List<AppInfo>): List<String> {
+private fun defaultDock(apps: List<AppInfo>, max: Int): List<String> {
     val picked = LinkedHashMap<String, String>()
     for (pkg in PreferredDock) {
-        if (picked.size >= 6) break
+        if (picked.size >= max) break
         apps.firstOrNull { it.component.packageName == pkg }?.let { picked.putIfAbsent(pkg, it.key) }
     }
-    if (picked.size < 4) apps.take(4 - picked.size).forEach { picked.putIfAbsent(it.component.packageName, it.key) }
-    return picked.values.toList()
+    if (picked.size < max) apps.take(max - picked.size).forEach { picked.putIfAbsent(it.component.packageName, it.key) }
+    return picked.values.take(max)
 }
 
 private class Grid(val cols: Int, val rows: Int, val widgetRows: Int)
 
+/** Layout numbers for tablet vs phone. */
+private class Profile(phone: Boolean) {
+    val iconBase = if (phone) 60f else 66f
+    val dockMax = if (phone) 4 else 8
+    val dockSpacing = if (phone) 18.dp else 20.dp
+    val todayCols = if (phone) 1 else 2
+    val colRange = if (phone) 4..5 else 4..9
+    val rowRange = if (phone) 4..7 else 3..7
+    val cellW = if (phone) 84.dp else 150.dp
+    val cellExtraH = if (phone) 50.dp else 62.dp
+    val cellMinH = if (phone) 100.dp else 118.dp
+    val topReserve = if (phone) 30.dp else 40.dp
+    val searchCellExtra = if (phone) 28.dp else 46.dp
+}
+
 @Composable
-fun LauncherApp(activity: MainActivity, repo: AppRepository, prefs: LauncherPrefs) {
+fun LauncherApp(
+    activity: MainActivity,
+    repo: AppRepository,
+    prefs: LauncherPrefs,
+    widgets: WidgetController,
+    phone: Boolean,
+) {
     val ctx = LocalContext.current
+    val profile = remember(phone) { Profile(phone) }
     val apps by repo.apps.collectAsStateWithLifecycle()
     val dockKeys by prefs.dock.collectAsState()
     val hidden by prefs.hidden.collectAsState()
@@ -115,29 +160,46 @@ fun LauncherApp(activity: MainActivity, repo: AppRepository, prefs: LauncherPref
     val wallpaperVersion by prefs.wallpaperVersion.collectAsState()
     val showLabels by prefs.showLabels.collectAsState()
     val iconScale by prefs.iconScale.collectAsState()
+    val homeWidgets by prefs.homeWidgets.collectAsState()
+    val todayWidgets by prefs.todayWidgets.collectAsState()
+    val lockToo by prefs.lockToo.collectAsState()
+    val bannerDismissed by prefs.bannerDismissed.collectAsState()
 
     val scope = rememberCoroutineScope()
     val overlay = remember { OverlayController(scope) }
+    val overlayOpen by remember { derivedStateOf { overlay.progress > 0f } }
     var editMode by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf<MenuState?>(null) }
     val menuAnim = remember { Animatable(0f) }
     var settingsOpen by remember { mutableStateOf(false) }
-    val settingsAnim by animateFloatAsState(
+    val settingsAnim = animateFloatAsState(
         if (settingsOpen) 1f else 0f, spring(dampingRatio = 0.86f, stiffness = 320f), label = "settings",
     )
+    val settingsVisible by remember { derivedStateOf { settingsAnim.value > 0.001f } }
+    var pickerTarget by remember { mutableStateOf<String?>(null) } // "home" | "today"
+    val pickerAnim = animateFloatAsState(
+        if (pickerTarget != null) 1f else 0f, spring(dampingRatio = 0.86f, stiffness = 320f), label = "picker",
+    )
+    val pickerVisible by remember { derivedStateOf { pickerAnim.value > 0.001f } }
+    var lastPickerTarget by remember { mutableStateOf("home") }
     val entrance = remember { Animatable(1f) }
+    val unlock = remember { Animatable(1f) }
+    var hasAccess by remember { mutableStateOf(Wallpapers.hasSystemAccess()) }
+    var wallpaperReload by remember { mutableIntStateOf(0) }
+    val seenSystemId = remember { intArrayOf(Wallpapers.systemId(ctx)) }
+    var applying by remember { mutableStateOf(false) }
 
     LaunchedEffect(apps) {
-        if (apps.isNotEmpty() && !prefs.dockInitialized) prefs.setDock(defaultDock(apps))
+        if (apps.isNotEmpty() && !prefs.dockInitialized) prefs.setDock(defaultDock(apps, if (phone) 4 else 6))
     }
 
     val appByKey = remember(apps) { apps.associateBy { it.key } }
-    val dockApps = remember(dockKeys, appByKey) { dockKeys.mapNotNull { appByKey[it] } }
-    val homeApps = remember(apps, dockKeys, hidden) {
-        val dockSet = dockKeys.toSet()
+    val dockApps = remember(dockKeys, appByKey) { dockKeys.mapNotNull { appByKey[it] }.take(profile.dockMax) }
+    val homeApps = remember(apps, dockApps, hidden) {
+        val dockSet = dockApps.map { it.key }.toSet()
         apps.filter { it.key !in hidden && it.key !in dockSet }
     }
-    val iconSize = (66f * iconScale).dp
+    val iconSize = (profile.iconBase * iconScale).dp
 
     fun showMenu(app: AppInfo, r: Rect, source: MenuSource) {
         if (editMode && source != MenuSource.Library) return
@@ -160,17 +222,61 @@ fun LauncherApp(activity: MainActivity, repo: AppRepository, prefs: LauncherPref
         Actions.launch(activity, app, r)
     }
 
-    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) scope.launch {
-            val ok = withContext(Dispatchers.IO) { Wallpapers.saveCustom(ctx, uri) }
-            if (ok) prefs.setWallpaper(-1) else Toast.makeText(ctx, "Couldn't load that photo", Toast.LENGTH_SHORT).show()
+    fun playUnlock() {
+        scope.launch {
+            entrance.snapTo(1f)
+            unlock.snapTo(0f)
+            unlock.animateTo(1f, spring(dampingRatio = 0.78f, stiffness = 120f))
         }
     }
 
-    // Close transient UI when an app opens; zoom the home screen back in when returning.
+    fun applyWallpaper(block: suspend () -> Boolean, id: Int) {
+        if (applying) return
+        applying = true
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) { block() }
+            applying = false
+            if (ok) {
+                seenSystemId[0] = Wallpapers.systemId(ctx)
+                prefs.setWallpaper(id)
+            } else {
+                Toast.makeText(ctx, "Couldn't set the wallpaper", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) applyWallpaper({ Wallpapers.applyPhoto(ctx, prefs, uri, lockToo) }, -1)
+    }
+
+    fun removeWidget(list: List<String>, spec: String, save: (List<String>) -> Unit) {
+        save(list - spec)
+        appWidgetId(spec)?.let { widgets.delete(it) }
+    }
+
+    // Wallpaper changed anywhere in the system -> reload.
+    DisposableEffect(Unit) {
+        val wm = WallpaperManager.getInstance(ctx)
+        val l = WallpaperManager.OnColorsChangedListener { _, which ->
+            if (which and WallpaperManager.FLAG_SYSTEM != 0) {
+                val id = Wallpapers.systemId(ctx)
+                if (id != seenSystemId[0]) {
+                    seenSystemId[0] = id
+                    prefs.setWallpaper(-2)
+                }
+                wallpaperReload++
+            }
+        }
+        runCatching { wm.addOnColorsChangedListener(l, Handler(Looper.getMainLooper())) }
+        onDispose { runCatching { wm.removeOnColorsChangedListener(l) } }
+    }
+
+    // Lifecycle: close transient UI on leave; zoom back in on return; iPhone-style unlock effect.
     val lifecycleOwner = LocalLifecycleOwner.current
+    val pendingUnlock = remember { booleanArrayOf(false) }
     DisposableEffect(lifecycleOwner) {
         var stopped = false
+        val km = ctx.getSystemService(KeyguardManager::class.java)
         val obs = LifecycleEventObserver { _, ev ->
             when (ev) {
                 Lifecycle.Event.ON_STOP -> {
@@ -179,57 +285,102 @@ fun LauncherApp(activity: MainActivity, repo: AppRepository, prefs: LauncherPref
                     menu = null
                     scope.launch { menuAnim.snapTo(0f) }
                 }
-                Lifecycle.Event.ON_START -> if (stopped) {
-                    stopped = false
-                    scope.launch {
-                        entrance.snapTo(0f)
-                        entrance.animateTo(1f, spring(dampingRatio = 0.82f, stiffness = 230f))
+                Lifecycle.Event.ON_START -> {
+                    val access = Wallpapers.hasSystemAccess()
+                    val id = Wallpapers.systemId(ctx)
+                    if (access != hasAccess || id != seenSystemId[0]) {
+                        if (id != seenSystemId[0]) prefs.setWallpaper(-2)
+                        hasAccess = access
+                        seenSystemId[0] = id
+                        wallpaperReload++
                     }
+                    if (pendingUnlock[0] && km?.isKeyguardLocked != true) {
+                        pendingUnlock[0] = false
+                        stopped = false
+                        playUnlock()
+                    } else if (stopped && !pendingUnlock[0]) {
+                        stopped = false
+                        scope.launch {
+                            entrance.snapTo(0f)
+                            entrance.animateTo(1f, spring(dampingRatio = 0.82f, stiffness = 230f))
+                        }
+                    }
+                }
+                Lifecycle.Event.ON_RESUME -> if (pendingUnlock[0] && km?.isKeyguardLocked != true) {
+                    // Safety net in case USER_PRESENT never arrives.
+                    pendingUnlock[0] = false
+                    stopped = false
+                    playUnlock()
                 }
                 else -> Unit
             }
         }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) {
+                when (i.action) {
+                    Intent.ACTION_SCREEN_OFF -> if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                        pendingUnlock[0] = true
+                        scope.launch { unlock.snapTo(0f) }
+                    }
+                    Intent.ACTION_USER_PRESENT -> if (pendingUnlock[0]) {
+                        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                            pendingUnlock[0] = false
+                            playUnlock()
+                        }
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        ContextCompat.registerReceiver(ctx, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         lifecycleOwner.lifecycle.addObserver(obs)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(obs)
+            runCatching { ctx.unregisterReceiver(receiver) }
+        }
     }
 
     BackHandler(enabled = true) {
         when {
             menu != null -> dismissMenu()
+            pickerTarget != null -> pickerTarget = null
             settingsOpen -> settingsOpen = false
             overlay.isOpen -> overlay.close()
             editMode -> editMode = false
         }
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val rootSize = IntSize(constraints.maxWidth, constraints.maxHeight)
-        val maxDim = max(rootSize.width, rootSize.height)
 
         var wallpaper by remember { mutableStateOf<WallpaperSet?>(null) }
-        LaunchedEffect(wallpaperId, wallpaperVersion, maxDim) {
-            if (maxDim > 0) wallpaper = withContext(Dispatchers.Default) { Wallpapers.load(ctx, wallpaperId, maxDim) }
+        LaunchedEffect(wallpaperVersion, wallpaperReload, hasAccess) {
+            wallpaper = withContext(Dispatchers.Default) { Wallpapers.resolve(ctx, prefs) }
         }
 
         // Grid sizing for the current orientation.
         val insets = WindowInsets.systemBars
         val topInset = with(density) { insets.getTop(this).toDp() }
         val bottomInset = with(density) { insets.getBottom(this).toDp() }
-        val topReserve = 40.dp
         val dotsH = 30.dp
         val dockArea = iconSize + 24.dp + 14.dp
-        val gridH = maxHeight - topInset - bottomInset - topReserve - dotsH - dockArea
-        val hPad = if (maxWidth > 900.dp) 48.dp else 28.dp
+        val gridH = maxHeight - topInset - bottomInset - profile.topReserve - dotsH - dockArea
+        val hPad = if (phone) 14.dp else if (maxWidth > 900.dp) 48.dp else 28.dp
         val gridW = maxWidth - hPad * 2
-        val cellW = 150.dp * iconScale.coerceAtLeast(0.9f)
-        val cellH = (iconSize + 62.dp).coerceAtLeast(118.dp)
-        val cols = (gridW / cellW).toInt().coerceIn(4, 9)
-        val rows = (gridH / cellH).toInt().coerceIn(3, 7)
-        val grid = Grid(cols, rows, if (rows >= 4) 2 else 0)
-        val pages = remember(homeApps, cols, rows) {
-            val first = (grid.rows - grid.widgetRows) * grid.cols
-            val per = grid.rows * grid.cols
+        val cellW = profile.cellW * iconScale.coerceAtLeast(0.9f)
+        val cellH = (iconSize + profile.cellExtraH).coerceAtLeast(profile.cellMinH)
+        val cols = (gridW / cellW).toInt().coerceIn(profile.colRange.first, profile.colRange.last)
+        val rows = (gridH / cellH).toInt().coerceIn(profile.rowRange.first, profile.rowRange.last)
+        val widgetRows = if (homeWidgets.isNotEmpty() && rows >= 4) 2 else 0
+        val grid = Grid(cols, rows, widgetRows)
+        val maxHomeWidgets = if (phone) 2 else (cols / 2 - 1).coerceAtLeast(2)
+        val pages = remember(homeApps, cols, rows, widgetRows) {
+            val first = (rows - widgetRows) * cols
+            val per = rows * cols
             val out = mutableListOf(homeApps.take(first))
             var i = first
             while (i < homeApps.size) {
@@ -238,42 +389,42 @@ fun LauncherApp(activity: MainActivity, repo: AppRepository, prefs: LauncherPref
             }
             out.toList()
         }
-        val pageCount by rememberUpdatedState(pages.size)
-        val pagerState = rememberPagerState { pageCount }
+        // Page 0 is the Today view; home pages start at 1.
+        val pageCount by rememberUpdatedState(pages.size + 1)
+        val pagerState = rememberPagerState(initialPage = 1) { pageCount }
 
         LaunchedEffect(Unit) {
             activity.homeEvents.collect {
                 when {
                     menu != null -> dismissMenu()
+                    pickerTarget != null -> pickerTarget = null
                     settingsOpen -> settingsOpen = false
                     overlay.isOpen -> overlay.close()
                     editMode -> editMode = false
-                    else -> pagerState.animateScrollToPage(0)
+                    else -> pagerState.animateScrollToPage(1)
                 }
             }
         }
 
         val glassRoot = remember { GlassRoot() }
         val currentEdit by rememberUpdatedState(editMode)
+        val now = rememberNow()
 
-        // ---------- Home layer: wallpaper + pages + dock (blurs & recedes behind overlays) ----------
+        // ---------- Home layer (recedes and blurs behind overlays) ----------
         Box(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer {
                     val p = overlay.progress
                     val m = menuAnim.value
-                    val s = settingsAnim
-                    val e = entrance.value
+                    val s = maxOf(settingsAnim.value, pickerAnim.value)
                     val blurDp = maxOf(p * 34f, m * 24f, s * 28f)
-                    val sc = (1f - 0.07f * p - 0.025f * m - 0.04f * s) * (1f + 0.09f * (1f - e))
+                    val sc = 1f - 0.07f * p - 0.025f * m - 0.04f * s
                     scaleX = sc
                     scaleY = sc
-                    alpha = 0.55f + 0.45f * e
                     val px = blurDp.dp.toPx()
                     renderEffect = if (px > 0.5f) BlurEffect(px, px, TileMode.Clamp) else null
                 }
-                .onGloballyPositioned { glassRoot.coords = it }
                 .pointerInput(topInset) {
                     val dist = 520.dp.toPx()
                     val topEdge = topInset.toPx() + 40.dp.toPx()
@@ -323,86 +474,154 @@ fun LauncherApp(activity: MainActivity, repo: AppRepository, prefs: LauncherPref
                     }
                 },
         ) {
-            Crossfade(wallpaper, animationSpec = tween(450), label = "wallpaper") { wp ->
-                if (wp != null) {
-                    Image(wp.full, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            // Wallpaper layer: zooms out of a soft blur on unlock (like iPhone).
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val u = unlock.value
+                        val e = entrance.value
+                        val sc = 1f + 0.16f * (1f - u) + 0.04f * (1f - e)
+                        scaleX = sc
+                        scaleY = sc
+                        val b = ((1f - u).coerceIn(0f, 1f) * 26f).dp.toPx()
+                        renderEffect = if (b > 0.5f) BlurEffect(b, b, TileMode.Clamp) else null
+                    },
+            ) {
+                Crossfade(wallpaper, animationSpec = tween(450), label = "wallpaper") { wp ->
+                    if (wp != null) Image(wp.full, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 }
             }
-            CompositionLocalProvider(
-                LocalGlass provides GlassEnv(wallpaper?.blurred, rootSize, glassRoot),
-                LocalContentColor provides Color.White,
+            // Content layer: icons fly in from slightly larger and fade in.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val u = unlock.value
+                        val e = entrance.value
+                        val uc = ((u - 0.12f) / 0.88f).coerceAtLeast(0f)
+                        val sc = (1f + 0.32f * (1f - uc)) * (1f + 0.09f * (1f - e))
+                        scaleX = sc
+                        scaleY = sc
+                        alpha = uc.coerceIn(0f, 1f) * (0.55f + 0.45f * e.coerceIn(0f, 1f))
+                    }
+                    .onGloballyPositioned { glassRoot.coords = it },
             ) {
-                Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
-                    Spacer(Modifier.height(topReserve))
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        beyondViewportPageCount = 1,
-                    ) { page ->
-                        HomePage(
-                            apps = pages.getOrElse(page) { emptyList() },
-                            grid = grid,
-                            showWidgets = page == 0 && grid.widgetRows > 0,
-                            hPad = hPad,
-                            iconSize = iconSize,
-                            showLabels = showLabels,
-                            editMode = editMode,
-                            onEnterEdit = { editMode = true },
-                            onExitEdit = { editMode = false },
-                            onLaunch = ::launchApp,
-                            onMenu = { a, r -> showMenu(a, r, MenuSource.Home) },
-                            onRemove = { prefs.hide(it.key) },
-                        )
+                CompositionLocalProvider(
+                    LocalGlass provides GlassEnv(wallpaper?.blurred, rootSize, glassRoot),
+                    LocalContentColor provides Color.White,
+                ) {
+                    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
+                        Spacer(Modifier.height(profile.topReserve))
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            beyondViewportPageCount = 1,
+                            flingBehavior = PagerDefaults.flingBehavior(
+                                state = pagerState,
+                                snapAnimationSpec = spring(dampingRatio = 0.92f, stiffness = 420f),
+                            ),
+                        ) { page ->
+                            if (page == 0) {
+                                TodayPage(
+                                    items = todayWidgets,
+                                    now = now,
+                                    controller = widgets,
+                                    cols = profile.todayCols,
+                                    hPad = hPad,
+                                    editMode = editMode,
+                                    onEnterEdit = { editMode = true },
+                                    onExitEdit = { editMode = false },
+                                    onAdd = { pickerTarget = "today"; lastPickerTarget = "today" },
+                                    onRemove = { spec -> removeWidget(todayWidgets, spec, prefs::setTodayWidgets) },
+                                )
+                            } else {
+                                HomePage(
+                                    apps = pages.getOrElse(page - 1) { emptyList() },
+                                    grid = grid,
+                                    widgets = if (page == 1 && widgetRows > 0) homeWidgets.take(maxHomeWidgets) else emptyList(),
+                                    now = now,
+                                    controller = widgets,
+                                    hPad = hPad,
+                                    iconSize = iconSize,
+                                    showLabels = showLabels,
+                                    editMode = editMode,
+                                    onEnterEdit = { editMode = true },
+                                    onExitEdit = { editMode = false },
+                                    onLaunch = ::launchApp,
+                                    onMenu = { a, r -> showMenu(a, r, MenuSource.Home) },
+                                    onRemove = { prefs.hide(it.key) },
+                                    onRemoveWidget = { spec -> removeWidget(homeWidgets, spec, prefs::setHomeWidgets) },
+                                )
+                            }
+                        }
+                        PageDots(pagerState, pages.size, Modifier.fillMaxWidth().height(dotsH))
+                        Box(
+                            Modifier.fillMaxWidth().height(dockArea).padding(bottom = 14.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Dock(
+                                apps = dockApps,
+                                iconSize = iconSize,
+                                spacing = profile.dockSpacing,
+                                editMode = editMode,
+                                onLaunch = ::launchApp,
+                                onMenu = { a, r -> showMenu(a, r, MenuSource.Dock) },
+                                onRemove = { prefs.toggleDock(it.key, profile.dockMax) },
+                            )
+                        }
                     }
-                    PageDots(pagerState, pages.size, Modifier.fillMaxWidth().height(dotsH))
-                    Box(
-                        Modifier.fillMaxWidth().height(dockArea).padding(bottom = 14.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Dock(
-                            apps = dockApps,
-                            iconSize = iconSize,
-                            editMode = editMode,
-                            onLaunch = ::launchApp,
-                            onMenu = { a, r -> showMenu(a, r, MenuSource.Dock) },
-                            onRemove = { prefs.toggleDock(it.key) },
+                    if (editMode) {
+                        Row(
+                            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp, vertical = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                GlassPill("+ Widget") {
+                                    val t = if (pagerState.currentPage == 0) "today" else "home"
+                                    pickerTarget = t
+                                    lastPickerTarget = t
+                                }
+                                GlassPill("Settings") { settingsOpen = true }
+                            }
+                            GlassPill("Done", bold = true) { editMode = false }
+                        }
+                    } else if (wallpaper == null && !hasAccess && !bannerDismissed) {
+                        AccessBanner(
+                            onAllow = { runCatching { ctx.startActivity(Wallpapers.accessIntent(ctx)) } },
+                            onDismiss = prefs::dismissBanner,
+                            modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
                         )
-                    }
-                }
-                if (editMode) {
-                    Row(
-                        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 24.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        GlassPill("Settings") { settingsOpen = true }
-                        GlassPill("Done", bold = true) { editMode = false }
                     }
                 }
             }
         }
 
         CompositionLocalProvider(LocalContentColor provides Color.White) {
-            // ---------- Search / App Library ----------
-            if (overlay.isOpen) {
+            if (overlayOpen) {
                 SpotlightOverlay(
                     ctrl = overlay,
                     apps = apps,
                     iconSize = iconSize,
-                    showLabels = true,
+                    cellMin = iconSize + profile.searchCellExtra,
                     onLaunch = { a, r -> launchApp(a, r) },
                     onLongClick = { a, r -> showMenu(a, r, MenuSource.Library) },
                     onWebSearch = { Actions.webSearch(ctx, it) },
                 )
             }
 
-            if (settingsAnim > 0.001f || settingsOpen) {
+            if (settingsVisible || settingsOpen) {
                 SettingsSheet(
-                    progress = { settingsAnim },
+                    progress = { settingsAnim.value },
                     wallpaperId = wallpaperId,
                     showLabels = showLabels,
                     iconScale = iconScale,
                     hiddenCount = hidden.size,
-                    onWallpaper = { prefs.setWallpaper(it) },
+                    hasAccess = hasAccess,
+                    lockToo = lockToo,
+                    onRequestAccess = { runCatching { ctx.startActivity(Wallpapers.accessIntent(ctx)) } },
+                    onLockToo = prefs::setLockToo,
+                    onWallpaper = { i -> applyWallpaper({ Wallpapers.applyPreset(ctx, prefs, i, lockToo) }, i) },
                     onPickPhoto = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     onLabels = prefs::setShowLabels,
                     onIconScale = prefs::setIconScale,
@@ -412,7 +631,36 @@ fun LauncherApp(activity: MainActivity, repo: AppRepository, prefs: LauncherPref
                 )
             }
 
-            // ---------- Long-press menu ----------
+            if (pickerVisible || pickerTarget != null) {
+                val target = pickerTarget ?: lastPickerTarget
+                fun addSpec(spec: String) {
+                    if (target == "today") {
+                        prefs.setTodayWidgets(todayWidgets + spec)
+                    } else {
+                        if (homeWidgets.size >= maxHomeWidgets) {
+                            Toast.makeText(ctx, "Home row is full — added to Today instead", Toast.LENGTH_SHORT).show()
+                            prefs.setTodayWidgets(todayWidgets + spec)
+                        } else {
+                            prefs.setHomeWidgets(homeWidgets + spec)
+                        }
+                    }
+                }
+                WidgetPicker(
+                    progress = { pickerAnim.value },
+                    controller = widgets,
+                    targetName = if (target == "today") "Today view" else "Home Screen",
+                    onPickBuiltin = { spec ->
+                        addSpec(spec)
+                        pickerTarget = null
+                    },
+                    onPickAndroid = { info ->
+                        pickerTarget = null
+                        widgets.add(info) { id -> addSpec("aw:$id") }
+                    },
+                    onDismiss = { pickerTarget = null },
+                )
+            }
+
             menu?.let { m ->
                 val inDock = m.app.key in dockKeys
                 val actions = buildList {
@@ -422,8 +670,8 @@ fun LauncherApp(activity: MainActivity, repo: AppRepository, prefs: LauncherPref
                     }
                     add(
                         MenuAction(if (inDock) "Remove from Dock" else "Add to Dock", if (inDock) Icons.Default.Close else Icons.Default.Star) {
-                            if (!prefs.toggleDock(m.app.key)) {
-                                Toast.makeText(ctx, "Dock is full ($MAX_DOCK apps)", Toast.LENGTH_SHORT).show()
+                            if (!prefs.toggleDock(m.app.key, profile.dockMax)) {
+                                Toast.makeText(ctx, "Dock is full (${profile.dockMax} apps)", Toast.LENGTH_SHORT).show()
                             }
                         },
                     )
@@ -438,10 +686,94 @@ fun LauncherApp(activity: MainActivity, repo: AppRepository, prefs: LauncherPref
 }
 
 @Composable
+private fun AccessBanner(onAllow: () -> Unit, onDismiss: () -> Unit, modifier: Modifier) {
+    GlassPanel(modifier.padding(top = 4.dp).widthIn(max = 520.dp).padding(horizontal = 16.dp), shape = RoundedCornerShape(50)) {
+        Row(Modifier.padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Allow wallpaper access for glass blur & unlock effect",
+                color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f, fill = false),
+            )
+            Spacer(Modifier.size(8.dp))
+            Text(
+                "Allow", color = Color(0xFF0A84FF), fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onAllow).padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+            Icon(
+                Icons.Default.Close, "Dismiss", tint = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.size(30.dp).clip(CircleShape).clickable(onClick = onDismiss).padding(6.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TodayPage(
+    items: List<String>,
+    now: State<LocalDateTime>,
+    controller: WidgetController,
+    cols: Int,
+    hPad: Dp,
+    editMode: Boolean,
+    onEnterEdit: () -> Unit,
+    onExitEdit: () -> Unit,
+    onAdd: () -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    val edit by rememberUpdatedState(editMode)
+    val density = LocalDensity.current.density
+    Column(
+        Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(onLongPress = { onEnterEdit() }, onTap = { if (edit) onExitEdit() })
+            }
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = hPad + 8.dp),
+    ) {
+        val t = now.value
+        Text(
+            t.format(DateTimeFormatter.ofPattern("EEEE", Locale.getDefault())),
+            color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold,
+        )
+        Text(
+            t.format(DateTimeFormatter.ofPattern("d MMMM", Locale.getDefault())),
+            color = Color.White.copy(alpha = 0.7f), fontSize = 20.sp, fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.height(18.dp))
+        items.chunked(cols).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                row.forEach { spec ->
+                    val h = when (spec) {
+                        W_CLOCK -> 170f
+                        W_CALENDAR -> 230f
+                        W_BATTERY -> 170f
+                        else -> appWidgetId(spec)?.let { controller.heightDp(it, density) } ?: 160f
+                    }
+                    androidx.compose.runtime.key(spec) {
+                        WidgetSlot(
+                            spec, now, controller, editMode, { onRemove(spec) },
+                            Modifier.weight(1f).height(h.dp),
+                        )
+                    }
+                }
+                repeat(cols - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+            Spacer(Modifier.height(18.dp))
+        }
+        Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+            GlassPill(if (items.isEmpty()) "Add your first widget" else "Add Widget", onClick = onAdd)
+        }
+        Spacer(Modifier.height(40.dp))
+    }
+}
+
+@Composable
 private fun HomePage(
     apps: List<AppInfo>,
     grid: Grid,
-    showWidgets: Boolean,
+    widgets: List<String>,
+    now: State<LocalDateTime>,
+    controller: WidgetController,
     hPad: Dp,
     iconSize: Dp,
     showLabels: Boolean,
@@ -451,8 +783,10 @@ private fun HomePage(
     onLaunch: (AppInfo, Rect) -> Unit,
     onMenu: (AppInfo, Rect) -> Unit,
     onRemove: (AppInfo) -> Unit,
+    onRemoveWidget: (String) -> Unit,
 ) {
     val edit by rememberUpdatedState(editMode)
+    val density = LocalDensity.current.density
     Column(
         Modifier
             .fillMaxSize()
@@ -464,12 +798,26 @@ private fun HomePage(
                 )
             },
     ) {
-        val widgetRows = if (showWidgets) grid.widgetRows else 0
+        val widgetRows = if (widgets.isNotEmpty()) grid.widgetRows else 0
         if (widgetRows > 0) {
-            WidgetsRow(
-                grid.cols,
-                Modifier.fillMaxWidth().weight(widgetRows.toFloat()).padding(horizontal = 12.dp, vertical = 10.dp),
-            )
+            Row(
+                Modifier.fillMaxWidth().weight(widgetRows.toFloat()).padding(horizontal = 10.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                widgets.forEach { spec ->
+                    val w = when (spec) {
+                        W_CLOCK -> if (grid.cols >= 7) 1.7f else 1.3f
+                        W_CALENDAR, W_BATTERY -> 1f
+                        else -> appWidgetId(spec)?.let { (controller.widthCells(it, density) / 2f).coerceIn(0.8f, 2.5f) } ?: 1f
+                    }
+                    androidx.compose.runtime.key(spec) {
+                        WidgetSlot(
+                            spec, now, controller, editMode, { onRemoveWidget(spec) },
+                            Modifier.weight(w).fillMaxHeight(),
+                        )
+                    }
+                }
+            }
         }
         val rows = grid.rows - widgetRows
         for (r in 0 until rows) {
@@ -485,7 +833,7 @@ private fun HomePage(
                                     showLabel = showLabels,
                                     jiggle = editMode,
                                     onClick = { rect -> onLaunch(app, rect) },
-                                    onLongClick = { rect -> if (edit) Unit else onMenu(app, rect) },
+                                    onLongClick = { rect -> if (!edit) onMenu(app, rect) },
                                     onRemove = { onRemove(app) },
                                 )
                             }
@@ -497,9 +845,12 @@ private fun HomePage(
     }
 }
 
+/** Dots for the home pages only (the Today page has none, like iOS). */
 @Composable
 private fun PageDots(state: PagerState, count: Int, modifier: Modifier) {
-    Box(modifier, contentAlignment = Alignment.Center) {
+    val onToday by remember { derivedStateOf { state.currentPage == 0 } }
+    val visibility by animateFloatAsState(if (onToday) 0f else 1f, label = "dotsVis")
+    Box(modifier.graphicsLayer { alpha = visibility }, contentAlignment = Alignment.Center) {
         if (count > 1) {
             GlassPanel(shape = RoundedCornerShape(50), tint = Color.White.copy(alpha = 0.12f)) {
                 Row(
@@ -508,7 +859,7 @@ private fun PageDots(state: PagerState, count: Int, modifier: Modifier) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     repeat(count) { i ->
-                        val selected = state.currentPage == i
+                        val selected by remember(i) { derivedStateOf { state.currentPage == i + 1 } }
                         val a by animateFloatAsState(if (selected) 1f else 0.4f, label = "dot")
                         Box(
                             Modifier
@@ -528,6 +879,7 @@ private fun PageDots(state: PagerState, count: Int, modifier: Modifier) {
 private fun Dock(
     apps: List<AppInfo>,
     iconSize: Dp,
+    spacing: Dp,
     editMode: Boolean,
     onLaunch: (AppInfo, Rect) -> Unit,
     onMenu: (AppInfo, Rect) -> Unit,
@@ -537,7 +889,7 @@ private fun Dock(
     GlassPanel(shape = RoundedCornerShape(iconSize * 0.32f + 14.dp), tint = Color.White.copy(alpha = 0.16f)) {
         Row(
             Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing),
         ) {
             apps.forEach { app ->
                 androidx.compose.runtime.key(app.key) {

@@ -106,7 +106,7 @@ fun GlassPanel(
         Box(
             Modifier
                 .matchParentSize()
-                .background(tint)
+                .background(if (env.blurred == null) tint.copy(alpha = (tint.alpha + 0.1f).coerceAtMost(1f)) else tint)
                 .border(0.8.dp, edge, shape),
         )
         content()

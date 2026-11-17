@@ -4,8 +4,6 @@ import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-const val MAX_DOCK = 8
-
 class LauncherPrefs(context: Context) {
     private val sp = context.getSharedPreferences("glass_launcher", Context.MODE_PRIVATE)
 
@@ -18,8 +16,45 @@ class LauncherPrefs(context: Context) {
     private val _hidden = MutableStateFlow(sp.getStringSet("hidden", emptySet())!!.toSet())
     val hidden: StateFlow<Set<String>> = _hidden
 
-    /** Index into Wallpapers.presets, or -1 for the user's own photo. */
-    private val _wallpaper = MutableStateFlow(sp.getInt("wallpaper", 0))
+    private fun list(key: String, def: List<String>): List<String> =
+        sp.getString(key, null)?.split("|")?.filter { it.isNotEmpty() } ?: def
+
+    private val _homeWidgets = MutableStateFlow(list("home_widgets", listOf("clock", "calendar", "battery")))
+    val homeWidgets: StateFlow<List<String>> = _homeWidgets
+    private val _todayWidgets = MutableStateFlow(list("today_widgets", listOf("calendar", "battery", "clock")))
+    val todayWidgets: StateFlow<List<String>> = _todayWidgets
+
+    fun setHomeWidgets(v: List<String>) {
+        _homeWidgets.value = v
+        sp.edit().putString("home_widgets", v.joinToString("|")).apply()
+    }
+
+    fun setTodayWidgets(v: List<String>) {
+        _todayWidgets.value = v
+        sp.edit().putString("today_widgets", v.joinToString("|")).apply()
+    }
+
+    /** System wallpaper id at the moment our own copy was applied; tells whether the copy still matches. */
+    var copyWallpaperId: Int
+        get() = sp.getInt("copy_wp_id", Int.MIN_VALUE)
+        set(v) = sp.edit().putInt("copy_wp_id", v).apply()
+
+    private val _lockToo = MutableStateFlow(sp.getBoolean("lock_too", true))
+    val lockToo: StateFlow<Boolean> = _lockToo
+    fun setLockToo(v: Boolean) {
+        _lockToo.value = v
+        sp.edit().putBoolean("lock_too", v).apply()
+    }
+
+    private val _bannerDismissed = MutableStateFlow(sp.getBoolean("banner_dismissed", false))
+    val bannerDismissed: StateFlow<Boolean> = _bannerDismissed
+    fun dismissBanner() {
+        _bannerDismissed.value = true
+        sp.edit().putBoolean("banner_dismissed", true).apply()
+    }
+
+    /** Index of the preset last applied from the launcher, -1 = own photo, -2 = something set elsewhere. */
+    private val _wallpaper = MutableStateFlow(sp.getInt("wallpaper", -2))
     val wallpaper: StateFlow<Int> = _wallpaper
     private val _wallpaperVersion = MutableStateFlow(0)
     val wallpaperVersion: StateFlow<Int> = _wallpaperVersion
@@ -36,13 +71,13 @@ class LauncherPrefs(context: Context) {
     }
 
     /** Returns false when the dock is already full. */
-    fun toggleDock(key: String): Boolean {
+    fun toggleDock(key: String, max: Int): Boolean {
         val cur = _dock.value
         if (key in cur) {
             setDock(cur - key)
             return true
         }
-        if (cur.size >= MAX_DOCK) return false
+        if (cur.size >= max) return false
         setDock(cur + key)
         return true
     }
@@ -54,6 +89,10 @@ class LauncherPrefs(context: Context) {
     private fun setHidden(set: Set<String>) {
         _hidden.value = set
         sp.edit().putStringSet("hidden", set).apply()
+    }
+
+    fun bumpWallpaper() {
+        _wallpaperVersion.value += 1
     }
 
     fun setWallpaper(id: Int) {

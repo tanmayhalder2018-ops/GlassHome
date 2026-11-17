@@ -24,12 +24,13 @@ jobs:
       - name: Build release APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
-          cp app/build/outputs/apk/release/app-release.apk GlassLauncher.apk
+          ./gradlew assembleTabRelease assemblePhoneRelease --no-daemon --stacktrace
+          cp app/build/outputs/apk/tab/release/app-tab-release.apk GlassLauncher-TabS10Lite.apk
+          cp app/build/outputs/apk/phone/release/app-phone-release.apk GlassLauncher-OnePlusNord5.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: GlassLauncher-apk
-          path: glass-launcher/GlassLauncher.apk
+          name: GlassLauncher-apks
+          path: glass-launcher/GlassLauncher-*.apk
       - name: Publish downloadable release
         uses: softprops/action-gh-release@v2
         with:
@@ -37,7 +38,8 @@ jobs:
           name: Glass Launcher (build ${{ github.run_number }})
           target_commitish: ${{ github.sha }}
           prerelease: true
-          files: glass-launcher/GlassLauncher.apk
+          files: glass-launcher/GlassLauncher-*.apk
           body: |
-            Glass Launcher for Galaxy Tab S10 Lite — install GlassLauncher.apk on the tablet.
+            Glass Launcher — install GlassLauncher-TabS10Lite.apk on the Galaxy Tab S10 Lite
+            and GlassLauncher-OnePlusNord5.apk on the OnePlus Nord 5.
             Built from ${{ github.ref_name }} @ ${{ github.sha }}.
