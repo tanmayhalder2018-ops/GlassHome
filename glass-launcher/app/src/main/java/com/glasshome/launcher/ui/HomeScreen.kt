@@ -13,7 +13,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -516,23 +515,25 @@ fun LauncherApp(
                     }
                 },
         ) {
-            // Wallpaper layer: zooms out of a soft blur on unlock (like iPhone).
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        val u = unlock.value
-                        val e = entrance.value
-                        val sc = 1f + 0.16f * (1f - u) + 0.04f * (1f - e)
-                        scaleX = sc
-                        scaleY = sc
-                        val b = ((1f - u).coerceIn(0f, 1f) * 26f).dp.toPx()
-                        renderEffect = if (b > 0.5f) BlurEffect(b, b, TileMode.Clamp) else null
-                    },
-            ) {
-                Crossfade(wallpaper, animationSpec = tween(450), label = "wallpaper") { wp ->
-                    if (wp != null) Image(wp.full, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                }
+            // The sharp wallpaper is drawn by Android behind this window (fast, always in sync).
+            // On top we fade in a pre-blurred copy: behind sheets/menus, and on unlock it starts
+            // zoomed-in and blurred, then shrinks and fades to reveal the sharp one (like iPhone).
+            wallpaper?.let { wp ->
+                Image(
+                    wp.blurred, null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val u = unlock.value
+                            val sheets = maxOf(overlay.progress, menuAnim.value, settingsAnim.value, pickerAnim.value)
+                            val unlockA = ((1f - u) * 1.5f).coerceIn(0f, 1f)
+                            alpha = maxOf(unlockA, sheets.coerceIn(0f, 1f))
+                            val sc = 1f + 0.16f * (1f - u)
+                            scaleX = sc
+                            scaleY = sc
+                        },
+                )
             }
             // Content layer: icons fly in from slightly larger and fade in.
             Box(

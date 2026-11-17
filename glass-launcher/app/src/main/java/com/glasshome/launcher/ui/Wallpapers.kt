@@ -26,7 +26,8 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import android.graphics.Color as AColor
 
-class WallpaperSet(val full: ImageBitmap, val blurred: ImageBitmap)
+/** Only the small pre-blurred copy is kept; the sharp wallpaper is always drawn by Android itself. */
+class WallpaperSet(val blurred: ImageBitmap)
 
 class WallpaperPreset(val name: String, val from: String, val to: String, val blobs: List<Blob>)
 class Blob(val color: String, val x: Float, val y: Float, val r: Float)
@@ -148,8 +149,8 @@ object Wallpapers {
             else -> null
         } ?: return null
         val blurred = blur(bmp)
-        bmp.prepareToDraw()
-        return WallpaperSet(bmp.asImageBitmap(), blurred.asImageBitmap())
+        blurred.prepareToDraw()
+        return WallpaperSet(blurred.asImageBitmap())
     }
 
     private fun blur(src: Bitmap): Bitmap {
