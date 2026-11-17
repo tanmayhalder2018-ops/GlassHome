@@ -12,8 +12,8 @@ android {
         applicationId = "com.glasshome.launcher"
         minSdk = 31
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.2.2"
+        versionCode = 6
+        versionName = "1.2.3"
     }
 
     flavorDimensions += "device"

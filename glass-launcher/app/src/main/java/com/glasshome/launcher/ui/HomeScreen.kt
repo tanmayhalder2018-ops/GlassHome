@@ -73,6 +73,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,6 +88,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -344,11 +346,11 @@ fun LauncherApp(
                         pendingUnlock[0] = true
                         scope.launch { unlock.snapTo(0f) }
                     }
+                    // Unlocked: always play. If we're not on screen yet, the animation simply
+                    // waits for our first frame, so the icons can never stay hidden.
                     Intent.ACTION_USER_PRESENT -> if (pendingUnlock[0]) {
-                        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                            pendingUnlock[0] = false
-                            playUnlock()
-                        }
+                        pendingUnlock[0] = false
+                        playUnlock()
                     }
                 }
             }
@@ -362,6 +364,19 @@ fun LauncherApp(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(obs)
             runCatching { ctx.unregisterReceiver(receiver) }
+        }
+    }
+
+    // Extra safety net: the launcher only gets window focus once the lock screen is gone.
+    val windowInfo = LocalWindowInfo.current
+    LaunchedEffect(windowInfo) {
+        snapshotFlow { windowInfo.isWindowFocused }.collect { focused ->
+            if (focused && pendingUnlock[0]) {
+                pendingUnlock[0] = false
+                playUnlock()
+            } else if (focused && unlock.targetValue < 1f && !unlock.isRunning) {
+                playUnlock()
+            }
         }
     }
 
