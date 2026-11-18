@@ -55,6 +55,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.glasshome.launcher.data.AppInfo
+import com.glasshome.launcher.data.IconShape
+import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.ui.graphics.Shape
 import kotlin.math.roundToInt
 
 enum class MenuSource { Home, Dock, Library }
@@ -289,6 +292,8 @@ fun SettingsSheet(
 
 /** Everything needed to edit icon sizes and grid counts. 0 means "Auto". */
 class LayoutSettings(
+    val shape: IconShape,
+    val onShape: (IconShape) -> Unit,
     val homeScale: Float,
     val homeCols: Int,
     val homeRows: Int,
@@ -309,6 +314,8 @@ class LayoutSettings(
 
 @Composable
 private fun LayoutRows(l: LayoutSettings) {
+    ShapeRow(l.shape, l.onShape)
+    Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
     SizeRow("Home icon size", l.homeScale, l.onHomeScale)
     Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
     StepperRow("Home columns", l.homeCols, l.autoCols, l.colRange, l.onHomeCols)
@@ -318,6 +325,56 @@ private fun LayoutRows(l: LayoutSettings) {
     SizeRow("App Library icon size", l.libScale, l.onLibScale)
     Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
     StepperRow("App Library columns", l.libCols, l.autoLibCols, l.libRange, l.onLibCols)
+}
+
+fun IconShape.toComposeShape(): Shape {
+    val pts = points()
+    if (pts == null) return RoundedCornerShape(percent = (cornerFraction * 100).roundToInt())
+    return GenericShape { size, _ ->
+        pts.forEachIndexed { i, (x, y) ->
+            if (i == 0) moveTo(x * size.width, y * size.height) else lineTo(x * size.width, y * size.height)
+        }
+        close()
+    }
+}
+
+@Composable
+private fun ShapeRow(current: IconShape, onShape: (IconShape) -> Unit) {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text("Icon shape", color = Color.White, fontSize = 16.sp)
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            IconShape.entries.forEach { sh ->
+                val sel = sh == current
+                Column(
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (sel) Color.White.copy(alpha = 0.16f) else Color.Transparent)
+                        .clickable { onShape(sh) }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier
+                            .size(42.dp)
+                            .clip(sh.toComposeShape())
+                            .background(
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    listOf(Color(0xFF6A5CFF), Color(0xFFFF7EB3)),
+                                ),
+                            ),
+                    )
+                    Text(
+                        sh.label,
+                        color = if (sel) Color.White else Color.White.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                        fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

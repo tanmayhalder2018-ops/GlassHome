@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
         preferHighestRefreshRate()
 
         val prefs = LauncherPrefs(applicationContext)
-        repo = AppRepository(applicationContext, lifecycleScope)
+        repo = AppRepository(applicationContext, lifecycleScope, prefs.iconShape.value)
         repo.start()
         widgets = WidgetController(this)
         setContent { LauncherApp(this, repo, prefs, widgets, phone) }

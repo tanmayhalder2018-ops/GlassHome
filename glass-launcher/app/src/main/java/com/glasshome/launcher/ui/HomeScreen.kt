@@ -172,6 +172,8 @@ fun LauncherApp(
     val homeRowsPref by prefs.homeRows.collectAsState()
     val libColsPref by prefs.libCols.collectAsState()
     val libIconScale by prefs.libIconScale.collectAsState()
+    val iconShape by prefs.iconShape.collectAsState()
+    LaunchedEffect(iconShape) { repo.setShape(iconShape) }
     val homeWidgets by prefs.homeWidgets.collectAsState()
     val todayWidgets by prefs.todayWidgets.collectAsState()
     val lockToo by prefs.lockToo.collectAsState()
@@ -676,6 +678,8 @@ fun LauncherApp(
                     wallpaperId = wallpaperId,
                     showLabels = showLabels,
                     layout = LayoutSettings(
+                        shape = iconShape,
+                        onShape = prefs::setIconShape,
                         homeScale = iconScale,
                         homeCols = homeColsPref,
                         homeRows = homeRowsPref,

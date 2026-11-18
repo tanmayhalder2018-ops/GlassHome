@@ -34,7 +34,7 @@ data class AppInfo(
 )
 
 /** Loads every launchable app and keeps the list fresh as apps are installed or removed. */
-class AppRepository(private val context: Context, private val scope: CoroutineScope) {
+class AppRepository(private val context: Context, private val scope: CoroutineScope, private var shape: IconShape) {
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
     private val iconCache = HashMap<String, ImageBitmap>()
@@ -70,6 +70,14 @@ class AppRepository(private val context: Context, private val scope: CoroutineSc
         synchronized(iconCache) { iconCache.keys.removeAll { it.startsWith("$pkg/") } }
     }
 
+    /** Re-renders every icon with a new outline. */
+    fun setShape(newShape: IconShape) {
+        if (newShape == shape) return
+        shape = newShape
+        synchronized(iconCache) { iconCache.clear() }
+        reload(null)
+    }
+
     fun reload(changedPackage: String?) {
         if (changedPackage != null) invalidate(changedPackage)
         job?.cancel()
@@ -84,7 +92,7 @@ class AppRepository(private val context: Context, private val scope: CoroutineSc
                     val icon = synchronized(iconCache) { iconCache[key] } ?: run {
                         val drawable = runCatching { info.getIcon(density) }.getOrNull()
                             ?: context.packageManager.defaultActivityIcon
-                        IconRenderer.render(drawable, iconPx).asImageBitmap().also {
+                        IconRenderer.render(drawable, iconPx, shape).asImageBitmap().also {
                             synchronized(iconCache) { iconCache[key] = it }
                         }
                     }
@@ -98,12 +106,22 @@ class AppRepository(private val context: Context, private val scope: CoroutineSc
 
 /** Renders any app icon as an iOS-style rounded square. */
 object IconRenderer {
-    fun render(drawable: Drawable, size: Int): Bitmap {
+    fun render(drawable: Drawable, size: Int, shape: IconShape = IconShape.Squircle): Bitmap {
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         val s = size.toFloat()
-        val clip = Path().apply { addRoundRect(0f, 0f, s, s, s * 0.225f, s * 0.225f, Path.Direction.CW) }
-        canvas.clipPath(clip)
+        val pts = shape.points()
+        val clip = Path().apply {
+            if (pts == null) {
+                val r = s * shape.cornerFraction
+                addRoundRect(0f, 0f, s, s, r, r, Path.Direction.CW)
+            } else {
+                pts.forEachIndexed { i, (x, y) -> if (i == 0) moveTo(x * s, y * s) else lineTo(x * s, y * s) }
+                close()
+            }
+        }
+        // Anti-aliased edge: draw through a mask instead of a hard clipPath.
+        val layer = canvas.saveLayer(0f, 0f, s, s, null)
         if (drawable is AdaptiveIconDrawable) {
             // Adaptive layers are 108dp with the visible 72dp in the middle.
             val inset = (size * 0.25f).toInt()
@@ -125,6 +143,11 @@ object IconRenderer {
             drawable.setBounds(pad, pad, size - pad, size - pad)
             drawable.draw(canvas)
         }
+        val mask = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+        }
+        canvas.drawPath(clip, mask)
+        canvas.restoreToCount(layer)
         bmp.prepareToDraw()
         return bmp
     }
