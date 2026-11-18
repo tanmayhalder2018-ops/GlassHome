@@ -36,6 +36,9 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -338,39 +341,71 @@ fun IconShape.toComposeShape(): Shape {
     }
 }
 
+/** Live preview + slider; icons are re-drawn only when the finger is lifted. */
 @Composable
 private fun ShapeRow(current: IconShape, onShape: (IconShape) -> Unit) {
+    var draft by remember(current) { mutableStateOf(current) }
     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Text("Icon shape", color = Color.White, fontSize = 16.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Icon shape", color = Color.White, fontSize = 16.sp)
+                Text(
+                    "Roundness ${(draft.roundness * 100).roundToInt()}%  ·  0 = square, 100 = circle",
+                    color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp,
+                )
+            }
+            Box(
+                Modifier
+                    .size(56.dp)
+                    .clip(draft.toComposeShape())
+                    .background(
+                        androidx.compose.ui.graphics.Brush.linearGradient(
+                            listOf(Color(0xFF6A5CFF), Color(0xFFFF7EB3)),
+                        ),
+                    ),
+            )
+        }
+        Slider(
+            value = draft.roundness,
+            onValueChange = { draft = draft.copy(roundness = (it * 100).roundToInt() / 100f) },
+            onValueChangeFinished = { onShape(draft) },
+            valueRange = 0f..1f,
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color(0xFF0A84FF),
+                inactiveTrackColor = Color.White.copy(alpha = 0.2f),
+            ),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Smooth corners", color = Color.White, fontSize = 15.sp)
+                Text("Samsung / iPhone-style curve", color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp)
+            }
+            Switch(
+                checked = draft.smooth,
+                onCheckedChange = { draft = draft.copy(smooth = it); onShape(draft) },
+                colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFF30D158), checkedThumbColor = Color.White),
+            )
+        }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            IconShape.entries.forEach { sh ->
-                val sel = sh == current
+            IconShape.presets.forEach { (name, sh) ->
+                val sel = sh == draft
                 Column(
                     Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(if (sel) Color.White.copy(alpha = 0.16f) else Color.Transparent)
-                        .clickable { onShape(sh) }
+                        .clickable { draft = sh; onShape(sh) }
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Box(
                         Modifier
-                            .size(42.dp)
+                            .size(36.dp)
                             .clip(sh.toComposeShape())
-                            .background(
-                                androidx.compose.ui.graphics.Brush.linearGradient(
-                                    listOf(Color(0xFF6A5CFF), Color(0xFFFF7EB3)),
-                                ),
-                            ),
+                            .background(Color.White.copy(alpha = if (sel) 0.95f else 0.5f)),
                     )
-                    Text(
-                        sh.label,
-                        color = if (sel) Color.White else Color.White.copy(alpha = 0.6f),
-                        fontSize = 12.sp,
-                        fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
+                    Text(name, color = Color.White.copy(alpha = if (sel) 1f else 0.6f), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
                 }
             }
         }

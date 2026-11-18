@@ -4,6 +4,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.LauncherApps
 import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Paint
+import android.graphics.Shader
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Path
@@ -106,22 +109,10 @@ class AppRepository(private val context: Context, private val scope: CoroutineSc
 
 /** Renders any app icon as an iOS-style rounded square. */
 object IconRenderer {
-    fun render(drawable: Drawable, size: Int, shape: IconShape = IconShape.Squircle): Bitmap {
-        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bmp)
-        val s = size.toFloat()
-        val pts = shape.points()
-        val clip = Path().apply {
-            if (pts == null) {
-                val r = s * shape.cornerFraction
-                addRoundRect(0f, 0f, s, s, r, r, Path.Direction.CW)
-            } else {
-                pts.forEachIndexed { i, (x, y) -> if (i == 0) moveTo(x * s, y * s) else lineTo(x * s, y * s) }
-                close()
-            }
-        }
-        // Anti-aliased edge: draw through a mask instead of a hard clipPath.
-        val layer = canvas.saveLayer(0f, 0f, s, s, null)
+    fun render(drawable: Drawable, size: Int, shape: IconShape = IconShape.Default): Bitmap {
+        // 1) Paint the full square icon.
+        val content = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(content)
         if (drawable is AdaptiveIconDrawable) {
             // Adaptive layers are 108dp with the visible 72dp in the middle.
             val inset = (size * 0.25f).toInt()
@@ -143,12 +134,26 @@ object IconRenderer {
             drawable.setBounds(pad, pad, size - pad, size - pad)
             drawable.draw(canvas)
         }
-        val mask = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+
+        // 2) Cut it to the chosen outline with a smooth, anti-aliased edge.
+        val s = size.toFloat()
+        val pts = shape.points()
+        val outline = Path().apply {
+            if (pts == null) {
+                val r = s * shape.cornerFraction
+                addRoundRect(0f, 0f, s, s, r, r, Path.Direction.CW)
+            } else {
+                pts.forEachIndexed { i, (x, y) -> if (i == 0) moveTo(x * s, y * s) else lineTo(x * s, y * s) }
+                close()
+            }
         }
-        canvas.drawPath(clip, mask)
-        canvas.restoreToCount(layer)
-        bmp.prepareToDraw()
-        return bmp
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            shader = BitmapShader(content, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        }
+        Canvas(out).drawPath(outline, paint)
+        content.recycle()
+        out.prepareToDraw()
+        return out
     }
 }

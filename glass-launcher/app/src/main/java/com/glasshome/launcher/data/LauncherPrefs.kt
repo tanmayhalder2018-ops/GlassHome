@@ -121,9 +121,17 @@ class LauncherPrefs(context: Context) {
     fun setLibCols(v: Int) { _libCols.value = v; sp.edit().putInt("lib_cols", v).apply() }
     fun setLibIconScale(v: Float) { _libIconScale.value = v; sp.edit().putFloat("lib_icon_scale", v).apply() }
 
-    private val _iconShape = MutableStateFlow(IconShape.of(sp.getString("icon_shape", null)))
+    private val _iconShape = MutableStateFlow(
+        IconShape(
+            sp.getFloat("icon_round", IconShape.Default.roundness),
+            sp.getBoolean("icon_smooth", IconShape.Default.smooth),
+        ),
+    )
     val iconShape: StateFlow<IconShape> = _iconShape
-    fun setIconShape(v: IconShape) { _iconShape.value = v; sp.edit().putString("icon_shape", v.id).apply() }
+    fun setIconShape(v: IconShape) {
+        _iconShape.value = v
+        sp.edit().putFloat("icon_round", v.roundness).putBoolean("icon_smooth", v.smooth).apply()
+    }
 
     fun setIconScale(v: Float) {
         _iconScale.value = v

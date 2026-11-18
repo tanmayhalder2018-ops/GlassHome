@@ -6,27 +6,34 @@ import kotlin.math.pow
 import kotlin.math.sign
 import kotlin.math.sin
 
-/** Icon outlines. Points are produced in a unit box (0..1) so both Android and Compose paths can use them. */
-enum class IconShape(val id: String, val label: String) {
-    Squircle("squircle", "Samsung"),
-    Rounded("rounded", "iPhone"),
-    Circle("circle", "Circle"),
-    Square("square", "Square");
+/**
+ * Icon outline chosen by the user.
+ * [roundness] 0 = square, 1 = circle. [smooth] = continuous "squircle" corners like Samsung / iOS.
+ */
+data class IconShape(val roundness: Float, val smooth: Boolean) {
 
-    /** Outline as unit-box points; null means "rounded rectangle" with [cornerFraction]. */
-    fun points(): List<Pair<Float, Float>>? = when (this) {
-        Squircle -> superellipse(4.2f)
-        Circle -> superellipse(2f)
-        else -> null
+    /** Outline as unit-box points for smooth shapes; null means a plain rounded rectangle. */
+    fun points(): List<Pair<Float, Float>>? {
+        if (!smooth) return null
+        val r = roundness.coerceIn(0f, 1f)
+        return superellipse(2f + 10f * (1f - r))
     }
 
-    val cornerFraction: Float get() = if (this == Square) 0.12f else 0.225f
+    /** Corner radius as a fraction of the icon size, for plain rounded rectangles. */
+    val cornerFraction: Float get() = roundness.coerceIn(0f, 1f) * 0.5f
 
     companion object {
-        fun of(id: String?): IconShape = entries.firstOrNull { it.id == id } ?: Squircle
+        val Default = IconShape(0.78f, true)
 
-        private fun superellipse(n: Float): List<Pair<Float, Float>> = (0 until 180).map { i ->
-            val t = Math.toRadians(i * 2.0)
+        val presets = listOf(
+            "Square" to IconShape(0.12f, false),
+            "iPhone" to IconShape(0.45f, false),
+            "Samsung" to IconShape(0.78f, true),
+            "Circle" to IconShape(1f, true),
+        )
+
+        private fun superellipse(n: Float): List<Pair<Float, Float>> = (0 until 240).map { i ->
+            val t = Math.toRadians(i * 1.5)
             val c = cos(t)
             val s = sin(t)
             val x = sign(c) * abs(c).pow(2.0 / n)
