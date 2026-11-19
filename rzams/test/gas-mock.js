@@ -31,6 +31,8 @@ class Sheet {
   constructor(name) { this.name = name; this.rows = []; this.textFmt = {}; this.frozen = 0; }
   width() { return this.rows.reduce((w, r) => Math.max(w, r.length), 0); }
   getLastRow() { return this.rows.length; }
+  getLastColumn() { return this.width(); }
+  getMaxRows() { return Math.max(this.rows.length, 1000); }
   appendRow(row) { const r = this.rows.length; this.rows.push(row.map((v, c) => autoConvert(v, this.textFmt[`${r}:${c}`]))); }
   deleteRow(n) { this.rows.splice(n - 1, 1); }
   getDataRange() { return new Range(this, 1, 1, Math.max(this.rows.length, 1), Math.max(this.width(), 1)); }
@@ -69,6 +71,7 @@ function makeServices(props) {
   };
   const cache = new Map();
   const calendarEvents = [];
+  const backups = [];
   const services = {
     SpreadsheetApp: { getActiveSpreadsheet: () => ss },
     CacheService: { getScriptCache: () => ({ get: (k) => (cache.has(k) ? cache.get(k) : null), put: (k, v) => cache.set(k, String(v)), remove: (k) => cache.delete(k) }) },
@@ -78,11 +81,12 @@ function makeServices(props) {
     Utilities: {
       getUuid: () => crypto.randomUUID(),
       formatDate: (d, tz, fmt) => {
-        const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d).map((x) => [x.type, x.value]));
-        if (fmt === 'yyyy-MM-dd') return `${p.year}-${p.month}-${p.day}`;
-        if (fmt === 'yyyy-MM') return `${p.year}-${p.month}`;
-        throw new Error('formatDate fmt not mocked: ' + fmt);
+        const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(d).map((x) => [x.type, x.value]));
+        const map = { yyyy: p.year, MM: p.month, dd: p.day, HH: p.hour, mm: p.minute, ss: p.second };
+        return fmt.split(/('[^']*')/).map((part) => (part.startsWith("'") ? part.slice(1, -1) : part.replace(/yyyy|MM|dd|HH|mm|ss/g, (t) => map[t]))).join('');
       },
+      computeHmacSha256Signature: (value, key) => Array.from(crypto.createHmac('sha256', String(key)).update(String(value)).digest()).map((b) => (b > 127 ? b - 256 : b)),
+      base64Encode: (bytes) => Buffer.from(bytes.map((b) => (b < 0 ? b + 256 : b))).toString('base64'),
     },
     CalendarApp: {
       getCalendarsByName: () => [{ getEventsForDay: () => [], createAllDayEvent: (t, d, o) => calendarEvents.push({ t, d, o }) }],
@@ -90,15 +94,26 @@ function makeServices(props) {
       getAllCalendars: () => [],
     },
     HtmlService: { XFrameOptionsMode: { ALLOWALL: 1 } },
+    ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ text: t, setMimeType() { return this; }, getContent() { return this.text; } }) },
+    DriveApp: {
+      getFoldersByName: () => ({ hasNext: () => false }),
+      createFolder: (n) => ({ name: n, getFiles: () => { const f = backups.slice(); return { hasNext: () => f.length > 0, next: () => f.shift() }; } }),
+      getFileById: () => ({ makeCopy: (name) => { const b = { name, getName: () => name, getId: () => 'copy' + backups.length, getUrl: () => 'https://drive.example/' + backups.length, getDateCreated: () => new Date(), setTrashed() {} }; backups.push(b); return b; } }),
+    },
+    ScriptApp: { getProjectTriggers: () => [], deleteTrigger() {}, newTrigger: () => ({ timeBased() { return this; }, everyDays() { return this; }, atHour() { return this; }, create() { return {}; } }) },
     console,
   };
-  return { services, sheets, ss, cache, calendarEvents, props };
+  ss.getId = () => 'sheet1';
+  return { services, sheets, ss, cache, calendarEvents, props, backups };
 }
 
 function loadBackend(props = { APP_PASSWORD: 'test-pass' }) {
   const env = makeServices(props);
   const ctx = vm.createContext({ ...env.services });
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'Code.gs'), 'utf8'), ctx, { filename: 'Code.gs' });
+  // Apps Script shares one global scope across .gs files
+  for (const f of ['Code.gs', 'Api.gs']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8'), ctx, { filename: f });
+  // helper: call the JSON API exactly as the web app does
+  env.api = (action, data, token) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify({ action, data, token }) } }).getContent());
   return { ctx, ...env };
 }
 

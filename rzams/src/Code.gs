@@ -3,7 +3,7 @@
  * RZAMS - Rhythm Zone Academy Management System
  * Backend (Google Apps Script) - Code.gs
  *
- * v2.1 (Stage 1: data accuracy & safety)
+ * v2.1 (Stage 1: data accuracy & safety) + v3 compatibility (see Api.gs)
  *  - Password is read from Script Properties (APP_PASSWORD), not the code.
  *  - Login is locked for 10 minutes after 5 wrong passwords.
  *  - Dates are read from the real cell value, so attendance saved on a
@@ -139,8 +139,10 @@ function monthText_(raw, display) {
 }
 
 function feeStartMonthIndex_() {
-  var p = PropertiesService.getScriptProperties().getProperty('FEE_START_MONTH');
-  var idx = monthIndex_(p || DEFAULT_FEE_START_MONTH);
+  var v = '';
+  try { var row = findBy_('settings', 'key', 'feeStartMonth'); if (row) v = row.value; } catch (e) {} // Settings tab (Api.gs)
+  if (!v) v = PropertiesService.getScriptProperties().getProperty('FEE_START_MONTH');
+  var idx = monthIndex_(v || DEFAULT_FEE_START_MONTH);
   return idx >= 0 ? idx : monthIndex_(DEFAULT_FEE_START_MONTH);
 }
 
@@ -208,9 +210,10 @@ function loginUser(password) {
   try {
     var cache = CacheService.getScriptCache();
     if (cache.get('rzams_login_lock')) return fail_('Too many wrong attempts. Try again in 10 minutes.');
-    var expected = getPassword_();
-    if (!expected) return fail_('Password is not set up yet. In Apps Script open Project Settings > Script properties and add APP_PASSWORD.');
-    if ((password || '').toString().trim() === expected) {
+    REQ_ = { tables: {}, user: null, action: 'loginUser' };
+    var hasUsers = readTable_('users').rows.length > 0;
+    if (!hasUsers && !getPassword_()) return fail_('Password is not set up yet. In Apps Script open Project Settings > Script properties and add APP_PASSWORD.');
+    if (verifyLegacyPassword_((password || '').toString().trim())) {
       cache.remove('rzams_login_fail');
       var token = Utilities.getUuid();
       cache.put('rzams_session_' + token, 'valid', SESSION_DURATION);
@@ -224,7 +227,10 @@ function loginUser(password) {
 }
 function validateSession(token) { return token ? CacheService.getScriptCache().get('rzams_session_' + token) === 'valid' : false; }
 function logoutUser(token) { if (token) CacheService.getScriptCache().remove('rzams_session_' + token); return { success: true }; }
-function requireAuth_(token) { if (!validateSession(token)) throw new Error('SESSION_EXPIRED'); }
+function requireAuth_(token) {
+  if (!validateSession(token)) throw new Error('SESSION_EXPIRED');
+  REQ_ = { tables: {}, user: { username: 'legacy-screen', name: 'Legacy screen', role: 'Staff' }, action: 'legacy' }; // fresh table cache (Api.gs)
+}
 
 // ---------------------------------------------------------------------
 // DASHBOARD
@@ -509,57 +515,19 @@ function getStudentFeeStatus(token, studentId) {
 function collectFee(token, data) {
   requireAuth_(token);
   data = data || {};
-  var paid = money_(data.paid);
-  if (!(paid > 0)) return fail_('Enter the amount being paid.');
-  var paymentDate = data.paymentDate ? isoDate_(data.paymentDate) : todayIso_();
-  if (!paymentDate) return fail_('Payment date is not valid.');
-
-  var monthsIn = (data.months && data.months.length) ? data.months : [data.month];
-  var idxs = [], seen = {};
-  for (var i = 0; i < monthsIn.length; i++) {
-    var mi = monthIndex_(monthsIn[i]);
-    if (mi < 0) return fail_('Month "' + cleanText_(monthsIn[i], 30) + '" is not valid. Use the format "November 2026".');
-    if (!seen[mi]) { seen[mi] = 1; idxs.push(mi); }
+  var months = (data.months && data.months.length) ? data.months : [data.month];
+  try {
+    var r = withLock_(function () {
+      return recordPayment_({ legacy: true, studentId: data.studentId, months: months, amount: data.paid, date: data.paymentDate,
+        method: data.method || 'Not recorded', customAmount: data.months ? null : data.amount, requestId: data.requestId });
+    });
+    var p = r.payment, lines = (p.allocation || []).map(function (a) { return a.month + ': ₹' + a.amount + (a.dueAfter > 0 ? ' (₹' + a.dueAfter + ' still due)' : ' (paid)'); });
+    var stillDue = 0; (p.allocation || []).forEach(function (a) { stillDue += Math.max(a.dueAfter, 0); });
+    return { success: true, message: 'Payment of ₹' + p.amount + ' saved (' + p.invoiceNo + '). ' + lines.join('; '), due: money_(stillDue), lines: lines, invoiceNo: p.invoiceNo };
+  } catch (err) {
+    if (err && err.code) return fail_(err.message);
+    throw err;
   }
-  idxs.sort(function (a, b) { return a - b; });
-  var customAmount = (!data.months && data.amount !== undefined && data.amount !== '') ? money_(data.amount) : null;
-
-  return withLock_(function () {
-    var student = readStudents_().filter(function (x) { return String(x['Student ID']) === String(data.studentId); })[0];
-    if (!student) return fail_('Student not found.');
-    var fee = money_(student['Monthly Fee']);
-    var sheet = getSheet_(SHEET_NAMES.FEES), fees = readFees_();
-
-    var plan = [], remaining = paid;
-    idxs.forEach(function (mi) {
-      var lbl = monthLabel_(mi), rec = findFee_(fees, student['Student ID'], lbl);
-      var amount = rec ? money_(rec['Amount']) : (customAmount !== null ? customAmount : fee);
-      var already = rec ? money_(rec['Paid']) : 0, due = money_(amount - already);
-      var take = Math.min(remaining, Math.max(due, 0));
-      remaining = money_(remaining - take);
-      plan.push({ lbl: lbl, rec: rec, amount: amount, already: already, take: take });
-    });
-    if (remaining > 0) {
-      return fail_('₹' + remaining + ' is more than the fees due for the selected month(s). Tick another month or reduce the amount.');
-    }
-    var lines = [], toAppend = [];
-    plan.forEach(function (p) {
-      if (p.take <= 0) return;
-      var totalPaid = money_(p.already + p.take), due = money_(p.amount - totalPaid);
-      if (p.rec) sheet.getRange(p.rec._row, 4, 1, 4).setValues([[p.amount, totalPaid, due, paymentDate]]);
-      else toAppend.push([student['Student ID'], student['Student Name'], p.lbl, p.amount, totalPaid, due, paymentDate]);
-      lines.push(p.lbl + ': ₹' + p.take + (due > 0 ? ' (₹' + due + ' still due)' : ' (paid)'));
-    });
-    if (!lines.length) return fail_('The selected month(s) are already fully paid.');
-    if (toAppend.length) {
-      var start = sheet.getLastRow() + 1;
-      sheet.getRange(start, 3, toAppend.length, 1).setNumberFormat('@'); // keep "November 2026" as text
-      sheet.getRange(start, 1, toAppend.length, 7).setValues(toAppend);
-    }
-    var stillDue = 0;
-    plan.forEach(function (p) { stillDue += Math.max(p.amount - p.already - p.take, 0); });
-    return { success: true, message: 'Payment of ₹' + paid + ' saved. ' + lines.join('; '), due: money_(stillDue), lines: lines };
-  });
 }
 
 // ---------------------------------------------------------------------
