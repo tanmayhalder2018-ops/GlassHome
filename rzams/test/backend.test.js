@@ -22,7 +22,7 @@ test('current month is November 2026 (tests assume FEE_START_MONTH = current mon
 
 test('login: password comes from Script Properties; missing password is reported', () => {
   const env = loadBackend({});
-  const r = env.ctx.loginUser('TML2026');
+  const r = env.ctx.loginUser('old-hardcoded-password');
   assert.equal(r.success, false);
   assert.match(r.message, /APP_PASSWORD/);
 });
