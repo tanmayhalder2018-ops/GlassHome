@@ -587,7 +587,7 @@ function recordPayment_(d) {
     id: nextId_('payments', 'PAY'), date: date, studentId: student.id, studentName: student.name,
     course: course ? course.name : student.instrument, amount: amount, method: method, reference: cleanText_(d.reference, 80),
     months: allocation.map(function (a) { return a.month; }).join(', '), allocation: allocation,
-    previousBalance: previousBalance, currentFee: currentFee, remaining: remaining, nextDueDate: dueDateFor_(nextIdx, settings.feeDueDay),
+    previousBalance: previousBalance, currentFee: currentFee, remaining: remaining, nextDueDate: (function (dd) { return dd < date ? date : dd; })(dueDateFor_(nextIdx, settings.feeDueDay)), // never before the invoice date
     invoiceNo: invoiceNo, status: remaining > 0 ? 'Partial' : 'Paid', notes: cleanText_(d.notes, 300), requestId: requestId,
     recordedBy: REQ_.user ? REQ_.user.username : 'legacy', createdAt: nowIso_(), voidReason: ''
   };

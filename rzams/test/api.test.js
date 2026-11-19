@@ -103,7 +103,8 @@ test('payments: formula, invoice number, allocation, next due date', () => {
   assert.equal(p.method, 'UPI');
   assert.equal(p.course, 'Vocal');
   assert.deepEqual(p.allocation.map((a) => [a.month, a.amount, a.dueAfter]), [['October 2026', 200, 0], [CUR, 300, 300]]);
-  assert.equal(p.nextDueDate, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-10`);
+  const due10 = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-10`;
+  assert.equal(p.nextDueDate, due10 < TODAY ? TODAY : due10, 'due date never before the invoice date');
   assert.equal(r.replace.pending.filter((x) => x.studentId === 'STU005').reduce((a, x) => a + x.due, 0), 300);
   // second payment gets the next number
   const p2 = ok('payments.record', { studentId: 'STU001', months: [CUR, nextMonth(1)], amount: 1000, method: 'Cash', requestId: 'req-2' }).payment;
