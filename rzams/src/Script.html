@@ -1,0 +1,376 @@
+<script>
+  var RZAMS = { token: null, currentPage: 'dashboard' };
+  var caches = { students: [], attendance: [], fees: [], pending: [], studio: [], tasks: [] };
+  var PAGE_TITLES = { dashboard: 'Dashboard', students: 'Students', attendance: 'Attendance', fees: 'Fees', studio: 'Studio', tasks: 'Tasks', reports: 'Reports' };
+
+  function apiCall(fnName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fnName].apply(null, args);
+    });
+  }
+
+  function authedCall(fnName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return apiCall.apply(null, [fnName, RZAMS.token].concat(args)).catch(function (err) {
+      hideLoading();
+      if (err && err.message === 'SESSION_EXPIRED') { toast('Session expired. Please log in.', 'error'); doLogout(true); }
+      else toast((err && err.message) || 'Something went wrong. Please try again.', 'error');
+      throw err;
+    });
+  }
+
+  var loadingCount = 0, loadingTimer;
+  function showLoading() {
+    loadingCount++;
+    document.getElementById('loadingOverlay').classList.add('active');
+    clearTimeout(loadingTimer);
+    loadingTimer = setTimeout(function () { loadingCount = 0; hideLoading(); }, 30000);
+  }
+  function hideLoading() {
+    loadingCount = Math.max(loadingCount - 1, 0);
+    if (loadingCount === 0) { document.getElementById('loadingOverlay').classList.remove('active'); clearTimeout(loadingTimer); }
+  }
+  window.onerror = function () { loadingCount = 0; hideLoading(); };
+
+  function toast(msg, type) {
+    type = type || 'info';
+    var c = document.getElementById('toastContainer'), el = document.createElement('div'), span = document.createElement('span');
+    el.className = 'toast ' + type; span.textContent = msg; el.appendChild(span); c.appendChild(el);
+    setTimeout(function () { el.style.opacity = '0'; setTimeout(function () { el.remove(); }, 300); }, type === 'error' ? 5000 : 3500);
+  }
+  function resultToast(res) { if (res) toast(res.message || (res.success ? 'Saved' : 'Failed'), res.success ? 'success' : 'error'); }
+
+  function confirmDialog(msg) {
+    return new Promise(function (resolve) {
+      var overlay = document.getElementById('confirmOverlay');
+      document.getElementById('confirmMessage').textContent = msg; overlay.classList.add('active');
+      function cleanup(res) { overlay.classList.remove('active'); yes.removeEventListener('click', onYes); no.removeEventListener('click', onNo); resolve(res); }
+      function onYes() { cleanup(true); } function onNo() { cleanup(false); }
+      var yes = document.getElementById('confirmYesBtn'), no = document.getElementById('confirmNoBtn');
+      yes.addEventListener('click', onYes); no.addEventListener('click', onNo);
+    });
+  }
+
+  function escapeHtml(str) {
+    return (str === null || str === undefined) ? '' : String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  // for values placed inside onclick="fn('...')"
+  function jsArg(str) { return escapeHtml(String(str === null || str === undefined ? '' : str).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
+  function rupees(n) { var v = Number(n) || 0; return '₹' + v.toLocaleString('en-IN'); }
+  function todayIso() { var d = new Date(), m = ('0' + (d.getMonth() + 1)).slice(-2), day = ('0' + d.getDate()).slice(-2); return d.getFullYear() + '-' + m + '-' + day; }
+
+  function lockBody() { document.body.style.overflow = 'hidden'; }
+  function unlockBody() { document.body.style.overflow = ''; }
+
+  function showPage(pageId) {
+    RZAMS.currentPage = pageId;
+    document.querySelectorAll('.page-section, .nav-item').forEach(function (el) { el.classList.remove('active'); });
+    document.getElementById('page-' + pageId).classList.add('active');
+    document.querySelector('.nav-item[data-page="' + pageId + '"]').classList.add('active');
+    document.getElementById('pageTitle').textContent = PAGE_TITLES[pageId] || 'RZAMS';
+
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+    unlockBody();
+
+    if (pageId === 'dashboard') loadDashboard();
+    if (pageId === 'students') loadStudents();
+    if (pageId === 'attendance') { var ad = document.getElementById('attendanceDate'); ad.max = todayIso(); if (!ad.value) ad.value = todayIso(); loadAttendanceForDate(); }
+    if (pageId === 'fees') loadFeesRecords();
+    if (pageId === 'studio') loadStudioClients();
+    if (pageId === 'tasks') loadTasks();
+    if (pageId === 'reports') switchReportTab('fees');
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault(); showLoading();
+    apiCall('loginUser', document.getElementById('loginPassword').value).then(function (res) {
+      hideLoading();
+      if (res.success) { RZAMS.token = res.token; sessionStorage.setItem('rzams_token', res.token); document.getElementById('loginScreen').classList.remove('active'); document.getElementById('appShell').style.display = 'block'; showPage('dashboard'); }
+      else { toast(res.message, 'error'); }
+    }).catch(function () { hideLoading(); toast('Server Error', 'error'); });
+  });
+
+  function doLogout(silent) {
+    if (RZAMS.token && !silent) apiCall('logoutUser', RZAMS.token).catch(function () {});
+    RZAMS.token = null; sessionStorage.removeItem('rzams_token');
+    document.getElementById('appShell').style.display = 'none'; document.getElementById('loginScreen').classList.add('active'); document.getElementById('loginPassword').value = '';
+    if (!silent) toast('Logged Out', 'info');
+  }
+
+  // ---------------- DASHBOARD ----------------
+  function loadDashboard() {
+    showLoading();
+    authedCall('getDashboardStats').then(function (s) {
+      hideLoading();
+      document.getElementById('statTotalStudents').textContent = s.totalStudents;
+      document.getElementById('statActiveStudents').textContent = s.activeStudents;
+      document.getElementById('statFeesDue').textContent = rupees(s.feesDue);
+      document.getElementById('statFeesDueLabel').textContent = 'Fees Pending' + (s.studentsWithDue ? ' (' + s.studentsWithDue + ' students)' : '');
+      document.getElementById('statCollected').textContent = rupees(s.collectedThisMonth);
+      document.getElementById('statCollectedLabel').textContent = 'Collected for ' + (s.currentMonth || 'this month');
+      document.getElementById('statAttendanceToday').textContent = s.attendanceToday;
+      document.getElementById('statStudioClients').textContent = s.studioClients;
+      document.getElementById('statPendingTasks').textContent = s.pendingTasks;
+    }).catch(function () {});
+  }
+
+  // ---------------- STUDENTS ----------------
+  function loadStudents() { showLoading(); authedCall('getStudents').then(function (list) { hideLoading(); caches.students = list || []; renderStudentsTable(); }).catch(function () {}); }
+
+  function renderStudentsTable() {
+    var q = document.getElementById('studentSearchInput').value.toLowerCase(), sFilter = document.getElementById('studentStatusFilter').value, tbody = document.getElementById('studentsTableBody');
+    var filtered = caches.students.filter(function (s) { return (!q || (String(s['Student Name'] || '') + ' ' + String(s['Student ID'] || '') + ' ' + String(s['Phone'] || '')).toLowerCase().indexOf(q) >= 0) && (!sFilter || s['Status'] === sFilter); });
+    if (filtered.length) {
+      tbody.innerHTML = filtered.map(function (s) {
+        var active = s['Status'] === 'Active';
+        return '<tr>' +
+          '<td><strong>' + escapeHtml(s['Student ID']) + '</strong></td>' +
+          '<td>' + escapeHtml(s['Student Name']) + '</td>' +
+          '<td>' + escapeHtml(s['Phone']) + '</td>' +
+          '<td>' + escapeHtml(s['Instrument']) + '</td>' +
+          '<td><strong style="color:var(--primary);">' + rupees(s['Monthly Fee']) + '</strong></td>' +
+          '<td><span class="' + (active ? 'text-success' : 'text-muted') + '">' + escapeHtml(s['Status']) + '</span></td>' +
+          '<td class="row-actions"><button class="icon-btn" title="Edit" onclick="openStudentModal(\'' + jsArg(s['Student ID']) + '\')"><span class="material-icons">edit</span></button>' +
+          (active ? '<button class="icon-btn danger" title="Archive" onclick="removeStudent(\'' + jsArg(s['Student ID']) + '\')"><span class="material-icons">archive</span></button>' : '') + '</td>' +
+        '</tr>';
+      }).join('');
+    } else { tbody.innerHTML = '<tr><td colspan="7">No students found.</td></tr>'; }
+  }
+
+  function openStudentModal(id) {
+    lockBody(); document.getElementById('studentForm').reset(); document.getElementById('studentEditId').value = ''; document.getElementById('studentModalTitle').innerText = id ? 'Edit Student' : 'Add Student';
+    if (id) { var s = caches.students.find(function (x) { return x['Student ID'] === id; }); if (s) { document.getElementById('studentEditId').value = s['Student ID']; document.getElementById('studentName').value = s['Student Name']; document.getElementById('studentPhone').value = s['Phone']; document.getElementById('studentParentName').value = s['Parent Name']; document.getElementById('studentInstrument').value = s['Instrument']; document.getElementById('studentBatch').value = s['Batch']; document.getElementById('studentFee').value = s['Monthly Fee']; document.getElementById('studentStatus').value = s['Status']; } }
+    document.getElementById('studentModal').classList.add('active');
+  }
+
+  function closeStudentModal() { unlockBody(); document.getElementById('studentModal').classList.remove('active'); }
+
+  document.getElementById('studentForm').addEventListener('submit', function (e) {
+    e.preventDefault(); var id = document.getElementById('studentEditId').value;
+    var data = { name: document.getElementById('studentName').value, phone: document.getElementById('studentPhone').value, parentName: document.getElementById('studentParentName').value, instrument: document.getElementById('studentInstrument').value, batch: document.getElementById('studentBatch').value, fee: document.getElementById('studentFee').value, status: document.getElementById('studentStatus').value };
+    showLoading();
+    (id ? authedCall('updateStudent', id, data) : authedCall('addStudent', data)).then(function (res) {
+      hideLoading(); resultToast(res);
+      if (res.success) { closeStudentModal(); loadStudents(); }
+    }).catch(function () {});
+  });
+
+  function removeStudent(id) {
+    confirmDialog('Archive this student? They will be marked Inactive. Their payment and attendance history is kept.').then(function (ok) {
+      if (!ok) return;
+      showLoading();
+      authedCall('deleteStudent', id).then(function (res) { hideLoading(); resultToast(res); loadStudents(); }).catch(function () {});
+    });
+  }
+
+  // ---------------- ATTENDANCE ----------------
+  function loadAttendanceForDate() {
+    var d = document.getElementById('attendanceDate').value;
+    if (!d) return;
+    if (d > todayIso()) { toast('Future dates cannot be marked.', 'error'); document.getElementById('attendanceDate').value = todayIso(); d = todayIso(); }
+    showLoading(); document.getElementById('attendanceTableBody').innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    authedCall('getAttendanceByDate', d).then(function (list) { hideLoading(); caches.attendance = list || []; renderAttendanceTable(); }).catch(function () {});
+  }
+
+  function renderAttendanceTable() {
+    var q = document.getElementById('attendanceSearchInput').value.toLowerCase(), tbody = document.getElementById('attendanceTableBody');
+    var filtered = caches.attendance.filter(function (s) { return !q || String(s.name || '').toLowerCase().indexOf(q) >= 0; });
+    if (filtered.length) {
+      tbody.innerHTML = filtered.map(function (s) {
+        return '<tr><td>' + escapeHtml(s.id) + '</td><td>' + escapeHtml(s.name) + '<div class="text-caption text-muted">' + escapeHtml(s.batch) + '</div></td><td><select onchange="markAtt(\'' + jsArg(s.id) + '\', this.value)"><option value="">- Select -</option><option value="Present" ' + (s.status == 'Present' ? 'selected' : '') + '>Present</option><option value="Absent" ' + (s.status == 'Absent' ? 'selected' : '') + '>Absent</option></select></td></tr>';
+      }).join('');
+    } else { tbody.innerHTML = '<tr><td colspan="3">No students</td></tr>'; }
+    updateAttendanceSummary();
+  }
+
+  function updateAttendanceSummary() {
+    var p = 0, a = 0; caches.attendance.forEach(function (s) { if (s.status === 'Present') p++; else if (s.status === 'Absent') a++; });
+    document.getElementById('attendanceSummary').textContent = p + ' present · ' + a + ' absent · ' + (caches.attendance.length - p - a) + ' not marked';
+  }
+
+  function markAtt(id, val) { var s = caches.attendance.find(function (x) { return x.id == id; }); if (s) s.status = val; updateAttendanceSummary(); }
+  function markAllPresent() { caches.attendance.forEach(function (s) { if (!s.status) s.status = 'Present'; }); renderAttendanceTable(); }
+  function saveAttendanceData() {
+    var d = document.getElementById('attendanceDate').value; var recs = caches.attendance.filter(function (s) { return s.status; });
+    if (!d || !recs.length) { toast('Mark at least one student', 'error'); return; }
+    showLoading();
+    authedCall('saveAttendance', d, recs).then(function (res) { hideLoading(); resultToast(res); }).catch(function () {});
+  }
+
+  // ---------------- FEES ----------------
+  var currentFeeTab = 'all';
+  var feeStatus = null; // result of getStudentFeeStatus for the student in the modal
+
+  function loadFeesRecords() {
+    showLoading();
+    Promise.all([authedCall('getFeesRecords'), authedCall('getPendingFees')]).then(function (r) {
+      hideLoading(); caches.fees = r[0] || []; caches.pending = r[1] || []; renderFeesTable();
+    }).catch(function () {});
+    authedCall('getStudentsBasicList').then(function (list) {
+      document.getElementById('feeStudentSelect').innerHTML = '<option value="">Select student</option>' + (list || []).filter(function (s) { return s.status === 'Active'; }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function (s) {
+        return '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.name) + ' (' + escapeHtml(s.id) + ')</option>';
+      }).join('');
+    }).catch(function () {});
+  }
+
+  function switchFeeTab(t) { currentFeeTab = t; document.getElementById('feeTabAll').classList.toggle('active', t == 'all'); document.getElementById('feeTabDue').classList.toggle('active', t == 'due'); renderFeesTable(); }
+
+  function renderFeesTable() {
+    var q = document.getElementById('feeSearchInput').value.toLowerCase(), tbody = document.getElementById('feesTableBody'), head = document.getElementById('feesTableHead');
+    var match = function (name, id) { return !q || (String(name || '') + ' ' + String(id || '')).toLowerCase().indexOf(q) >= 0; };
+    if (currentFeeTab == 'due') {
+      head.innerHTML = '<tr><th>ID</th><th>Name</th><th>Month</th><th>Fee</th><th>Paid</th><th>Due</th><th></th></tr>';
+      var list = caches.pending.filter(function (p) { return match(p.name, p.studentId); }), total = 0;
+      list.forEach(function (p) { total += Number(p.due) || 0; });
+      document.getElementById('feeSummary').textContent = list.length ? (list.length + ' unpaid month(s) · ' + rupees(total) + ' pending') : '';
+      tbody.innerHTML = list.length ? list.map(function (p) {
+        return '<tr><td>' + escapeHtml(p.studentId) + '</td><td><strong>' + escapeHtml(p.name) + '</strong></td><td>' + escapeHtml(p.month) + (p.recorded ? '' : ' <span class="text-caption text-muted">(not paid)</span>') + '</td><td>' + rupees(p.amount) + '</td><td style="color:var(--success);">' + rupees(p.paid) + '</td><td class="text-danger">' + rupees(p.due) + '</td>' +
+          '<td><button class="btn btn-text" onclick="openFeeModal(\'' + jsArg(p.studentId) + '\')">Collect</button></td></tr>';
+      }).join('') : '<tr><td colspan="7">No pending fees 🎉</td></tr>';
+      return;
+    }
+    head.innerHTML = '<tr><th>ID</th><th>Name</th><th>Month</th><th>Amount</th><th>Paid</th><th>Due</th><th>Paid On</th></tr>';
+    document.getElementById('feeSummary').textContent = '';
+    var filtered = caches.fees.filter(function (f) { return match(f['Student Name'], f['Student ID']); });
+    tbody.innerHTML = filtered.length ? filtered.map(function (f) {
+      var dueVal = Number(f['Due']) || 0;
+      return '<tr><td>' + escapeHtml(f['Student ID']) + '</td><td><strong>' + escapeHtml(f['Student Name']) + '</strong></td><td>' + escapeHtml(f['Month']) + '</td><td>' + rupees(f['Amount']) + '</td><td style="color:var(--success);">' + rupees(f['Paid']) + '</td><td class="' + (dueVal > 0 ? 'text-danger' : 'text-success') + '">' + rupees(dueVal) + '</td><td>' + escapeHtml(f['Payment Date']) + '</td></tr>';
+    }).join('') : '<tr><td colspan="7">No fee records found</td></tr>';
+  }
+
+  function openFeeModal(studentId) {
+    lockBody();
+    document.getElementById('feeForm').reset();
+    document.getElementById('feeDate').value = todayIso(); document.getElementById('feeDate').max = todayIso();
+    document.getElementById('feeMonthList').innerHTML = '<div class="text-muted text-caption">Select a student to see unpaid months.</div>';
+    document.getElementById('feeBreakdown').textContent = '';
+    feeStatus = null;
+    document.getElementById('feeModal').classList.add('active');
+    if (studentId) { document.getElementById('feeStudentSelect').value = studentId; onFeeStudentChange(); }
+  }
+
+  function closeFeeModal() { unlockBody(); document.getElementById('feeModal').classList.remove('active'); }
+
+  function onFeeStudentChange() {
+    var id = document.getElementById('feeStudentSelect').value, box = document.getElementById('feeMonthList');
+    feeStatus = null; document.getElementById('feePaid').value = ''; document.getElementById('feeBreakdown').textContent = '';
+    if (!id) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="text-muted text-caption">Loading…</div>';
+    authedCall('getStudentFeeStatus', id).then(function (res) {
+      if (!res || !res.success) { box.innerHTML = ''; resultToast(res); return; }
+      feeStatus = res;
+      if (!res.months.length) { box.innerHTML = '<div class="text-muted text-caption">Nothing due.</div>'; return; }
+      var firstDue = res.months.filter(function (m) { return !m.advance; })[0] || res.months[0];
+      box.innerHTML = res.months.map(function (m, i) {
+        var label = escapeHtml(m.month) + (m.advance ? ' <span class="text-caption text-muted">(advance)</span>' : '');
+        var sub = m.paid > 0 ? rupees(m.paid) + ' paid · ' + rupees(m.due) + ' due' : rupees(m.due) + ' due';
+        return '<label class="month-option"><input type="checkbox" value="' + i + '" ' + (m === firstDue ? 'checked' : '') + ' onchange="onFeeMonthsChange(true)"><span class="month-name">' + label + '</span><span class="month-due ' + (m.advance ? 'text-muted' : 'text-danger') + '">' + sub + '</span></label>';
+      }).join('');
+      onFeeMonthsChange(true);
+    }).catch(function () { box.innerHTML = ''; });
+  }
+
+  function selectedFeeMonths() {
+    if (!feeStatus) return [];
+    return Array.prototype.map.call(document.querySelectorAll('#feeMonthList input:checked'), function (c) { return feeStatus.months[Number(c.value)]; });
+  }
+
+  function onFeeMonthsChange(resetAmount) {
+    var sel = selectedFeeMonths(), total = 0;
+    sel.forEach(function (m) { total += Number(m.due) || 0; });
+    if (resetAmount) document.getElementById('feePaid').value = total || '';
+    updateDuePreview();
+  }
+
+  // Shows how the amount will be split over the ticked months (oldest first), same rule as the server.
+  function updateDuePreview() {
+    var sel = selectedFeeMonths(), paid = Number(document.getElementById('feePaid').value) || 0, rem = paid, lines = [], total = 0, out = document.getElementById('feeBreakdown');
+    sel.forEach(function (m) { total += Number(m.due) || 0; });
+    sel.forEach(function (m) { var take = Math.min(rem, m.due); rem -= take; if (take > 0) lines.push(m.month + ': ' + rupees(take) + (take < m.due ? ' (' + rupees(m.due - take) + ' left)' : ' ✓')); });
+    out.className = 'fee-breakdown';
+    if (!sel.length) { out.textContent = 'Tick at least one month.'; out.className += ' text-danger'; return; }
+    if (paid > total) { out.textContent = rupees(paid - total) + ' more than the ticked months. Tick another month.'; out.className += ' text-danger'; return; }
+    out.textContent = lines.length ? lines.join(' · ') : '';
+  }
+
+  document.getElementById('feeForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var id = document.getElementById('feeStudentSelect').value, sel = selectedFeeMonths(), paid = Number(document.getElementById('feePaid').value) || 0, total = 0;
+    sel.forEach(function (m) { total += Number(m.due) || 0; });
+    if (!id) { toast('Select a student', 'error'); return; }
+    if (!sel.length) { toast('Tick at least one month', 'error'); return; }
+    if (paid <= 0) { toast('Enter the amount being paid', 'error'); return; }
+    if (paid > total) { toast('Amount is more than the ticked months. Tick another month.', 'error'); return; }
+    showLoading();
+    authedCall('collectFee', { studentId: id, months: sel.map(function (m) { return m.month; }), paid: paid, paymentDate: document.getElementById('feeDate').value }).then(function (res) {
+      hideLoading(); resultToast(res);
+      if (res.success) { closeFeeModal(); loadFeesRecords(); }
+    }).catch(function () {});
+  });
+
+  // ---------------- STUDIO ----------------
+  function loadStudioClients() { showLoading(); authedCall('getStudioClients').then(function (list) { hideLoading(); caches.studio = list || []; renderStudioTable(); }).catch(function () {}); }
+  function renderStudioTable() {
+    var q = document.getElementById('studioSearchInput').value.toLowerCase(), tbody = document.getElementById('studioTableBody');
+    var list = caches.studio.filter(function (c) { return !q || (String(c['Client Name'] || '') + ' ' + String(c['Project Name'] || '')).toLowerCase().indexOf(q) >= 0; });
+    tbody.innerHTML = list.length ? list.map(function (c) {
+      return '<tr><td>' + escapeHtml(c['Client Name']) + '</td><td>' + escapeHtml(c['Phone']) + '</td><td>' + escapeHtml(c['Project Name']) + '</td><td>' + rupees(c['Total Amount']) + '</td><td class="' + (Number(c['Due']) > 0 ? 'text-danger' : 'text-success') + '">' + rupees(c['Due']) + '</td>' +
+        '<td class="row-actions"><button class="icon-btn" onclick="openStudioModal(' + Number(c._row) + ')"><span class="material-icons">edit</span></button><button class="icon-btn danger" onclick="removeStudioClient(' + Number(c._row) + ')"><span class="material-icons">delete</span></button></td></tr>';
+    }).join('') : '<tr><td colspan="6">No clients</td></tr>';
+  }
+
+  function openStudioModal(row) { lockBody(); document.getElementById('studioForm').reset(); document.getElementById('studioEditRow').value = ''; document.getElementById('studioModalTitle').innerText = row ? 'Edit Client' : 'Add Client'; if (row) { var c = caches.studio.find(function (x) { return x._row == row; }); if (c) { document.getElementById('studioEditRow').value = row; document.getElementById('studioClientName').value = c['Client Name']; document.getElementById('studioPhone').value = c['Phone']; document.getElementById('studioProjectName').value = c['Project Name']; document.getElementById('studioTotal').value = c['Total Amount']; document.getElementById('studioAdvance').value = c['Advance']; document.getElementById('studioStatus').value = c['Status']; updateStudioDuePreview(); } } document.getElementById('studioModal').classList.add('active'); }
+  function closeStudioModal() { unlockBody(); document.getElementById('studioModal').classList.remove('active'); }
+  function updateStudioDuePreview() { var t = Number(document.getElementById('studioTotal').value) || 0, a = Number(document.getElementById('studioAdvance').value) || 0; document.getElementById('studioDuePreview').value = Math.max(t - a, 0); }
+  document.getElementById('studioForm').addEventListener('submit', function (e) {
+    e.preventDefault(); var row = document.getElementById('studioEditRow').value, data = { clientName: document.getElementById('studioClientName').value, phone: document.getElementById('studioPhone').value, projectName: document.getElementById('studioProjectName').value, total: document.getElementById('studioTotal').value, advance: document.getElementById('studioAdvance').value, status: document.getElementById('studioStatus').value };
+    var orig = row ? caches.studio.find(function (x) { return x._row == row; }) : null;
+    showLoading();
+    var call = row ? authedCall('updateStudioClient', Number(row), data, orig ? orig['Client Name'] : null) : authedCall('addStudioClient', data);
+    call.then(function (res) { hideLoading(); resultToast(res); if (res.success) { closeStudioModal(); loadStudioClients(); } }).catch(function () {});
+  });
+  function removeStudioClient(row) {
+    var c = caches.studio.find(function (x) { return x._row == row; });
+    confirmDialog('Delete client' + (c ? ' "' + c['Client Name'] + '"' : '') + '?').then(function (ok) { if (ok) { showLoading(); authedCall('deleteStudioClient', row, c ? c['Client Name'] : null).then(function (res) { hideLoading(); resultToast(res); loadStudioClients(); }).catch(function () {}); } });
+  }
+
+  // ---------------- TASKS ----------------
+  function loadTasks() { showLoading(); authedCall('getTasks').then(function (list) { hideLoading(); caches.tasks = list || []; renderTasksTable(); }).catch(function () {}); }
+  function renderTasksTable() { var tbody = document.getElementById('tasksTableBody'); tbody.innerHTML = caches.tasks.length ? caches.tasks.map(function (t) { return '<tr><td>' + escapeHtml(t['Date']) + '</td><td>' + escapeHtml(t['Task']) + '</td><td>' + escapeHtml(t['Priority']) + '</td><td><button class="icon-btn danger" onclick="removeTask(' + Number(t._row) + ')"><span class="material-icons">delete</span></button></td></tr>'; }).join('') : '<tr><td colspan="4">No tasks</td></tr>'; }
+  function openTaskModal() { lockBody(); document.getElementById('taskForm').reset(); document.getElementById('taskDate').value = todayIso(); document.getElementById('taskModal').classList.add('active'); }
+  function closeTaskModal() { unlockBody(); document.getElementById('taskModal').classList.remove('active'); }
+  document.getElementById('taskForm').addEventListener('submit', function (e) { e.preventDefault(); showLoading(); authedCall('addTask', { task: document.getElementById('taskText').value, priority: document.getElementById('taskPriority').value, date: document.getElementById('taskDate').value }).then(function (res) { hideLoading(); resultToast(res); if (res.success) { closeTaskModal(); loadTasks(); } }).catch(function () {}); });
+  function removeTask(row) { var t = caches.tasks.find(function (x) { return x._row == row; }); confirmDialog('Delete task?').then(function (ok) { if (ok) { showLoading(); authedCall('deleteTask', row, t ? t['Task'] : null).then(function (res) { hideLoading(); resultToast(res); loadTasks(); }).catch(function () {}); } }); }
+
+  // ---------------- REPORTS ----------------
+  var currentRep = 'fees';
+  function switchReportTab(t) { currentRep = t; document.querySelectorAll('#page-reports .btn-text').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-report') == t); }); document.getElementById('reportResultBody').innerHTML = ''; document.getElementById('reportResultHead').innerHTML = ''; generateReport(); }
+  function generateReport() {
+    showLoading();
+    var head = document.getElementById('reportResultHead'), body = document.getElementById('reportResultBody');
+    if (currentRep == 'student') {
+      authedCall('getStudentReport').then(function (list) { hideLoading(); head.innerHTML = '<tr><th>ID</th><th>Name</th><th>Phone</th><th>Instrument</th><th>Batch</th><th>Fee</th><th>Joined</th><th>Status</th></tr>'; body.innerHTML = (list || []).map(function (s) { return '<tr><td>' + escapeHtml(s['Student ID']) + '</td><td>' + escapeHtml(s['Student Name']) + '</td><td>' + escapeHtml(s['Phone']) + '</td><td>' + escapeHtml(s['Instrument']) + '</td><td>' + escapeHtml(s['Batch']) + '</td><td>' + rupees(s['Monthly Fee']) + '</td><td>' + escapeHtml(s['Join Date']) + '</td><td>' + escapeHtml(s['Status']) + '</td></tr>'; }).join(''); }).catch(function () {});
+    } else if (currentRep == 'pending') {
+      authedCall('getPendingFees').then(function (list) { hideLoading(); head.innerHTML = '<tr><th>ID</th><th>Name</th><th>Phone</th><th>Month</th><th>Fee</th><th>Paid</th><th>Due</th></tr>'; body.innerHTML = (list || []).map(function (p) { return '<tr><td>' + escapeHtml(p.studentId) + '</td><td>' + escapeHtml(p.name) + '</td><td>' + escapeHtml(p.phone) + '</td><td>' + escapeHtml(p.month) + '</td><td>' + rupees(p.amount) + '</td><td>' + rupees(p.paid) + '</td><td>' + rupees(p.due) + '</td></tr>'; }).join(''); }).catch(function () {});
+    } else {
+      authedCall('getFeesReportFull').then(function (list) { hideLoading(); head.innerHTML = '<tr><th>ID</th><th>Name</th><th>Month</th><th>Amount</th><th>Paid</th><th>Due</th><th>Paid On</th></tr>'; body.innerHTML = (list || []).map(function (f) { return '<tr><td>' + escapeHtml(f['Student ID']) + '</td><td>' + escapeHtml(f['Student Name']) + '</td><td>' + escapeHtml(f['Month']) + '</td><td>' + rupees(f['Amount']) + '</td><td>' + rupees(f['Paid']) + '</td><td>' + rupees(f['Due']) + '</td><td>' + escapeHtml(f['Payment Date']) + '</td></tr>'; }).join(''); }).catch(function () {});
+    }
+  }
+  function exportCurrentReportCSV() {
+    var rows = document.querySelectorAll('#reportResultTable tr'), csv = [];
+    rows.forEach(function (r) { var row = []; r.querySelectorAll('th, td').forEach(function (c) { var v = c.innerText.replace(/₹/g, '').replace(/,(?=\d{2,3}\b)/g, ''); if (/^[=+\-@]/.test(v)) v = "'" + v; row.push('"' + v.replace(/"/g, '""') + '"'); }); csv.push(row.join(',')); });
+    if (csv.length < 2) return toast('No data', 'error');
+    var link = document.createElement('a'); link.href = URL.createObjectURL(new Blob(['﻿' + csv.join('\n')], { type: 'text/csv' })); link.download = 'RZAMS_' + currentRep + '_' + todayIso() + '.csv'; link.click();
+  }
+
+  document.getElementById('menuToggle').addEventListener('click', function () { lockBody(); document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('active'); });
+  document.getElementById('sidebarOverlay').addEventListener('click', function () { unlockBody(); document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('active'); });
+  document.getElementById('logoutBtn').addEventListener('click', function () { doLogout(false); });
+  document.querySelectorAll('.nav-item').forEach(function (n) { n.addEventListener('click', function () { if (n.getAttribute('data-page')) showPage(n.getAttribute('data-page')); }); });
+  document.querySelectorAll('.stat-card[data-goto]').forEach(function (c) { c.addEventListener('click', function () { showPage(c.getAttribute('data-goto')); if (c.getAttribute('data-tab') === 'due') switchFeeTab('due'); }); });
+
+  var t = sessionStorage.getItem('rzams_token');
+  if (t) { RZAMS.token = t; document.getElementById('loginScreen').classList.remove('active'); document.getElementById('appShell').style.display = 'block'; showPage('dashboard'); }
+</script>

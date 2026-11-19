@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>Rhythm Zone Academy</title>
+  
+  
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/727/727218.png">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/727/727218.png">
+
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  
+  <?!= include('Style'); ?></head>
+<body>
+  
+  
+  <div class="bg-blobs">
+    <div class="blob blob1"></div>
+    <div class="blob blob2"></div>
+    <div class="blob blob3"></div>
+  </div>
+
+  
+  <div id="loadingOverlay"><div class="spinner"></div></div>
+  <div id="toastContainer"></div>
+
+  
+  <div id="confirmOverlay" class="overlay">
+    <div class="confirm-box surface-card">
+      <div class="icon-box"><span class="material-icons text-danger">warning</span></div>
+      <h3 class="heading-m">Are you sure?</h3>
+      <p id="confirmMessage" class="text-body-m text-muted">This action cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="btn btn-text" id="confirmNoBtn">Cancel</button>
+        <button class="btn btn-primary btn-danger-bg" id="confirmYesBtn">Proceed</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <div id="loginScreen" class="overlay active">
+    <div class="login-card surface-card">
+      <div class="login-logo"><span class="material-icons">graphic_eq</span></div>
+      <h1 class="heading-l">Rhythm Zone Academy Management System</h1>
+      <p class="text-body-m text-muted" style="margin-bottom:20px;">Enter Master Password</p>
+      <form id="loginForm">
+        <div class="form-group">
+          <input type="password" id="loginPassword" class="input-control" placeholder="Password" required />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
+          <span class="material-icons">login</span> Login
+        </button>
+      </form>
+    </div>
+  </div>
+
+  
+  <div id="appShell">
+    <div class="app-layout">
+      <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+      
+      <aside class="sidebar surface-card" id="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-box"><span class="material-icons">graphic_eq</span></div>
+          <div><h2 class="heading-s">Rhythm Zone</h2><span class="text-caption text-muted">Management System</span></div>
+        </div>
+        <nav class="sidebar-nav">
+          <div class="nav-item active" data-page="dashboard"><span class="material-icons">dashboard</span> Dashboard</div>
+          <div class="nav-item" data-page="students"><span class="material-icons">groups</span> Students</div>
+          <div class="nav-item" data-page="attendance"><span class="material-icons">event_available</span> Attendance</div>
+          <div class="nav-item" data-page="fees"><span class="material-icons">payments</span> Fees</div>
+          <div class="nav-item" data-page="studio"><span class="material-icons">mic</span> Studio</div>
+          <div class="nav-item" data-page="tasks"><span class="material-icons">checklist</span> Tasks</div>
+          <div class="nav-item" data-page="reports"><span class="material-icons">bar_chart</span> Reports</div>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="nav-item text-danger" id="logoutBtn" style="color:var(--danger);"><span class="material-icons">logout</span> Lock Session</div>
+        </div>
+      </aside>
+
+      
+      <div class="main-content">
+        <header class="topbar surface-card">
+          <div class="topbar-left">
+            <button id="menuToggle" class="icon-btn"><span class="material-icons">menu</span></button>
+            <h1 id="pageTitle" class="heading-m">Dashboard</h1>
+          </div>
+          <div class="admin-chip"><span class="material-icons" style="font-size:16px;">admin_panel_settings</span> Admin</div>
+        </header>
+
+        <main class="content-area">
+
+          
+          <section id="page-dashboard" class="page-section active">
+            <div class="cards-grid" id="statsGrid">
+              <div class="stat-card surface-card" data-goto="students">
+                <div class="icon-box" style="color:#8ab4f8;"><span class="material-icons">groups</span></div>
+                <div><div class="stat-value" id="statTotalStudents">0</div><div class="stat-label">Total Students</div></div>
+              </div>
+              <div class="stat-card surface-card" data-goto="students">
+                <div class="icon-box" style="color:#81c995;"><span class="material-icons">how_to_reg</span></div>
+                <div><div class="stat-value" id="statActiveStudents">0</div><div class="stat-label">Active Students</div></div>
+              </div>
+              <div class="stat-card surface-card" data-goto="fees" data-tab="due">
+                <div class="icon-box" style="color:#f28b82;"><span class="material-icons">account_balance_wallet</span></div>
+                <div><div class="stat-value" id="statFeesDue">0</div><div class="stat-label" id="statFeesDueLabel">Fees Pending</div></div>
+              </div>
+              <div class="stat-card surface-card" data-goto="fees">
+                <div class="icon-box" style="color:#81c995;"><span class="material-icons">savings</span></div>
+                <div><div class="stat-value" id="statCollected">0</div><div class="stat-label" id="statCollectedLabel">Collected this month</div></div>
+              </div>
+              <div class="stat-card surface-card" data-goto="attendance">
+                <div class="icon-box" style="color:#fde293;"><span class="material-icons">event_available</span></div>
+                <div><div class="stat-value" id="statAttendanceToday">0</div><div class="stat-label">Attendance Today</div></div>
+              </div>
+              <div class="stat-card surface-card" data-goto="studio">
+                <div class="icon-box" style="color:#c58af9;"><span class="material-icons">mic</span></div>
+                <div><div class="stat-value" id="statStudioClients">0</div><div class="stat-label">Studio Clients</div></div>
+              </div>
+              <div class="stat-card surface-card" data-goto="tasks">
+                <div class="icon-box" style="color:#ff8a65;"><span class="material-icons">checklist</span></div>
+                <div><div class="stat-value" id="statPendingTasks">0</div><div class="stat-label">Pending Tasks</div></div>
+              </div>
+            </div>
+          </section>
+
+          
+          <section id="page-students" class="page-section">
+            <div class="action-bar">
+              <div class="search-box surface-card"><span class="material-icons">search</span><input type="text" id="studentSearchInput" class="input-control" placeholder="Search name, ID or phone..." oninput="renderStudentsTable()"></div>
+              <select class="input-control surface-card" id="studentStatusFilter" onchange="renderStudentsTable()"><option value="Active" selected>Active</option><option value="Inactive">Archived / Inactive</option><option value="">All</option></select>
+              <button class="btn btn-primary" onclick="openStudentModal()"><span class="material-icons">add</span> Add Student</button>
+            </div>
+            <div class="table-card surface-card">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Instrument</th><th>Fee</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody id="studentsTableBody"><tr class="empty-row"><td colspan="7">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          
+          <section id="page-attendance" class="page-section">
+            <div class="action-bar">
+              <input type="date" id="attendanceDate" onchange="loadAttendanceForDate()" class="input-control surface-card">
+              <div class="search-box surface-card"><span class="material-icons">search</span><input type="text" id="attendanceSearchInput" class="input-control" placeholder="Search..." oninput="renderAttendanceTable()"></div>
+              <button class="btn btn-text" onclick="markAllPresent()"><span class="material-icons">done_all</span> Mark rest Present</button>
+              <button class="btn btn-primary" onclick="saveAttendanceData()"><span class="material-icons">save</span> Save</button>
+            </div>
+            <div class="list-summary text-caption text-muted" id="attendanceSummary"></div>
+            <div class="table-card surface-card">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>ID</th><th>Name</th><th>Mark</th></tr></thead>
+                  <tbody id="attendanceTableBody"><tr class="empty-row"><td colspan="3">Select a date</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          
+          <section id="page-fees" class="page-section">
+            <div class="action-bar">
+              <div class="tab-buttons">
+                <button class="btn btn-text active" id="feeTabAll" onclick="switchFeeTab('all')">All</button>
+                <button class="btn btn-text" id="feeTabDue" onclick="switchFeeTab('due')">Pending</button>
+              </div>
+              <div class="search-box surface-card"><span class="material-icons">search</span><input type="text" id="feeSearchInput" class="input-control" placeholder="Search..." oninput="renderFeesTable()"></div>
+              <button class="btn btn-primary" onclick="openFeeModal()"><span class="material-icons">payments</span> Collect</button>
+            </div>
+            <div class="list-summary text-caption text-danger" id="feeSummary"></div>
+            <div class="table-card surface-card">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead id="feesTableHead"><tr><th>ID</th><th>Name</th><th>Month</th><th>Amount</th><th>Paid</th><th>Due</th><th>Paid On</th></tr></thead>
+                  <tbody id="feesTableBody"><tr class="empty-row"><td colspan="7">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          
+          <section id="page-studio" class="page-section">
+            <div class="action-bar">
+              <div class="search-box surface-card"><span class="material-icons">search</span><input type="text" id="studioSearchInput" class="input-control" placeholder="Search..." oninput="renderStudioTable()"></div>
+              <button class="btn btn-primary" onclick="openStudioModal()"><span class="material-icons">add</span> Add Client</button>
+            </div>
+            <div class="table-card surface-card">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Client</th><th>Phone</th><th>Project</th><th>Total</th><th>Due</th><th>Actions</th></tr></thead>
+                  <tbody id="studioTableBody"><tr class="empty-row"><td colspan="6">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          
+          <section id="page-tasks" class="page-section">
+            <div class="action-bar">
+              <button class="btn btn-primary" onclick="openTaskModal()"><span class="material-icons">add</span> Add Task</button>
+            </div>
+            <div class="table-card surface-card">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Date</th><th>Task</th><th>Priority</th><th>Actions</th></tr></thead>
+                  <tbody id="tasksTableBody"><tr class="empty-row"><td colspan="4">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          
+          <section id="page-reports" class="page-section">
+            <div class="action-bar">
+              <div class="tab-buttons">
+                <button class="btn btn-text active" data-report="fees" onclick="switchReportTab('fees')">Fees</button>
+                <button class="btn btn-text" data-report="pending" onclick="switchReportTab('pending')">Pending</button>
+                <button class="btn btn-text" data-report="student" onclick="switchReportTab('student')">Students</button>
+              </div>
+              <button class="btn btn-primary" onclick="exportCurrentReportCSV()"><span class="material-icons">download</span> Export CSV</button>
+            </div>
+            <div class="table-card surface-card">
+              <div class="table-wrap">
+                <table class="data-table" id="reportResultTable">
+                  <thead id="reportResultHead"></thead><tbody id="reportResultBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="modal-overlay" id="studentModal"><div class="modal-box surface-card"><div class="modal-header"><h3 id="studentModalTitle" class="heading-m">Add Student</h3><button type="button" class="icon-btn" onclick="closeStudentModal()"><span class="material-icons">close</span></button></div><form id="studentForm"><div class="modal-body"><input type="hidden" id="studentEditId"><div class="form-group"><label>Name</label><input type="text" id="studentName" class="input-control" required></div><div class="form-row"><div class="form-group"><label>Phone</label><input type="tel" id="studentPhone" class="input-control" inputmode="tel" maxlength="20" placeholder="10-digit mobile" required></div><div class="form-group"><label>Parent Name</label><input type="text" id="studentParentName" class="input-control"></div></div><div class="form-row"><div class="form-group"><label>Instrument</label><select id="studentInstrument" class="input-control" required><option value="">Select...</option><option>Guitar</option><option>Piano/Keyboard</option><option>Drums</option><option>Vocals</option><option>Other</option></select></div><div class="form-group"><label>Batch</label><input type="text" id="studentBatch" class="input-control"></div></div><div class="form-row"><div class="form-group"><label>Monthly Fee</label><input type="number" id="studentFee" class="input-control" min="0" step="1" required></div><div class="form-group"><label>Status</label><select id="studentStatus" class="input-control"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div></div></div><div class="modal-footer"><button type="button" class="btn btn-text" onclick="closeStudentModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form></div></div>
+
+  <div class="modal-overlay" id="feeModal"><div class="modal-box surface-card"><div class="modal-header"><h3 class="heading-m">Collect Fee</h3><button type="button" class="icon-btn" onclick="closeFeeModal()"><span class="material-icons">close</span></button></div><form id="feeForm"><div class="modal-body"><div class="form-group"><label>Student</label><select id="feeStudentSelect" class="input-control" required onchange="onFeeStudentChange()"><option value="">Loading...</option></select></div><div class="form-group"><label>Months (tick every month this payment covers)</label><div id="feeMonthList" class="month-list"></div></div><div class="form-row"><div class="form-group"><label>Amount Paying Now (₹)</label><input type="number" id="feePaid" class="input-control" min="1" step="1" required oninput="updateDuePreview()"></div><div class="form-group"><label>Payment Date</label><input type="date" id="feeDate" class="input-control" required></div></div><div id="feeBreakdown" class="fee-breakdown"></div></div><div class="modal-footer"><button type="button" class="btn btn-text" onclick="closeFeeModal()">Cancel</button><button type="submit" class="btn btn-primary">Save Payment</button></div></form></div></div>
+
+  <div class="modal-overlay" id="studioModal"><div class="modal-box surface-card"><div class="modal-header"><h3 id="studioModalTitle" class="heading-m">Studio Client</h3><button type="button" class="icon-btn" onclick="closeStudioModal()"><span class="material-icons">close</span></button></div><form id="studioForm"><div class="modal-body"><input type="hidden" id="studioEditRow"><div class="form-group"><label>Client Name</label><input type="text" id="studioClientName" class="input-control" required></div><div class="form-row"><div class="form-group"><label>Phone</label><input type="tel" id="studioPhone" class="input-control" inputmode="tel" maxlength="20" required></div><div class="form-group"><label>Project Name</label><input type="text" id="studioProjectName" class="input-control" required></div></div><div class="form-row"><div class="form-group"><label>Total (₹)</label><input type="number" id="studioTotal" class="input-control" min="0" required oninput="updateStudioDuePreview()"></div><div class="form-group"><label>Advance (₹)</label><input type="number" id="studioAdvance" class="input-control" min="0" required oninput="updateStudioDuePreview()"></div></div><div class="form-row"><div class="form-group"><label>Due (₹)</label><input type="number" id="studioDuePreview" class="input-control" readonly disabled></div><div class="form-group"><label>Status</label><select id="studioStatus" class="input-control"><option value="Ongoing">Ongoing</option><option value="Completed">Completed</option></select></div></div></div><div class="modal-footer"><button type="button" class="btn btn-text" onclick="closeStudioModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form></div></div>
+
+  <div class="modal-overlay" id="taskModal"><div class="modal-box surface-card"><div class="modal-header"><h3 class="heading-m">Add Task</h3><button type="button" class="icon-btn" onclick="closeTaskModal()"><span class="material-icons">close</span></button></div><form id="taskForm"><div class="modal-body"><div class="form-group"><label>Task description</label><input type="text" id="taskText" class="input-control" required></div><div class="form-row"><div class="form-group"><label>Priority</label><select id="taskPriority" class="input-control"><option value="High">High</option><option value="Medium" selected>Medium</option><option value="Low">Low</option></select></div><div class="form-group"><label>Date</label><input type="date" id="taskDate" class="input-control"></div></div></div><div class="modal-footer"><button type="button" class="btn btn-text" onclick="closeTaskModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form></div></div>
+
+  <?!= include('Script'); ?></body>
+</html>
