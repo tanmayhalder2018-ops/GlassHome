@@ -135,6 +135,10 @@ function seed(env) {
   at.rows.push([D('2026-08-01'), 'STU005', 'Dipa Test', 'Absent']);
   sc.rows.push(['Studio One', 9000000101, 'Song A', 5000, 2000, 3000, 'Ongoing']);
   sc.rows.push(['Studio Two', 9000000102, 'Song B', 3000, 3000, 0, 'Completed']);
+  // The older tests were written for prepaid billing counted from November 2026;
+  // postpaid behaviour has its own tests (api.test.js) that change these settings.
+  env.ctx.ensureTable_('settings');
+  env.sheets['Settings'].rows.push(['defaultBilling', 'Prepaid'], ['feeStartMonth', 'November 2026']);
 }
 
 module.exports = { loadBackend, seed, isDate };

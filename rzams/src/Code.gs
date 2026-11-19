@@ -24,7 +24,7 @@
  */
 
 var SESSION_DURATION = 21600; // 6 hours
-var DEFAULT_FEE_START_MONTH = 'November 2026';
+var DEFAULT_FEE_START_MONTH = 'October 2026'; // first month that is billed
 var MAX_LOGIN_FAILURES = 5;
 var LOGIN_LOCK_SECONDS = 600;
 
@@ -194,7 +194,23 @@ function sheetToObjects_(sheetName, sheet) {
   return out;
 }
 
-function readStudents_() { return sheetToObjects_(SHEET_NAMES.STUDENTS, getSheet_(SHEET_NAMES.STUDENTS)); }
+function readStudents_() {
+  var list = sheetToObjects_(SHEET_NAMES.STUDENTS, getSheet_(SHEET_NAMES.STUDENTS));
+  // the Billing column (Postpaid/Prepaid) lives after the original 9 columns
+  try { var bill = {}; readTable_('students').rows.forEach(function (r) { bill[r.id] = r.billing; }); list.forEach(function (s) { s['Billing'] = bill[s['Student ID']] || ''; }); } catch (e) {}
+  return list;
+}
+
+/** Postpaid: a month's fee is due in the following month (November collects October). Prepaid: due in the same month. */
+function defaultBilling_() {
+  try { var r = findBy_('settings', 'key', 'defaultBilling'); if (r && (r.value === 'Prepaid' || r.value === 'Postpaid')) return r.value; } catch (e) {}
+  return 'Postpaid';
+}
+function billingOf_(s) { var b = String(s['Billing'] || '').trim(); return (b === 'Prepaid' || b === 'Postpaid') ? b : defaultBilling_(); }
+/** Latest month whose fee is already due for this student. */
+function lastBilledMonth_(s, cur) { return billingOf_(s) === 'Prepaid' ? cur : cur - 1; }
+/** Months to add to a month index to get the month its fee is due in. */
+function dueOffset_(s) { return billingOf_(s) === 'Prepaid' ? 0 : 1; }
 function readFees_() { return sheetToObjects_(SHEET_NAMES.FEES, getSheet_(SHEET_NAMES.FEES)); }
 function isActive_(s) { return String(s['Status']).toLowerCase() === 'active'; }
 
@@ -462,7 +478,8 @@ function computePending_(students, fees) {
     var fee = money_(s['Monthly Fee']); if (fee <= 0) return;
     var from = Math.max(start, monthIndex_(String(s['Join Date']).slice(0, 7)));
     if (from < 0) from = start;
-    for (var m = from; m <= cur; m++) {
+    var upTo = lastBilledMonth_(s, cur);
+    for (var m = from; m <= upTo; m++) {
       var lbl = monthLabel_(m), rec = findFee_(fees, s['Student ID'], lbl);
       var amount = rec ? money_(rec['Amount']) : fee, paid = rec ? money_(rec['Paid']) : 0;
       covered[s['Student ID'] + '|' + lbl] = 1;
@@ -497,7 +514,7 @@ function getStudentFeeStatus(token, studentId) {
     var lbl = monthLabel_(m); if (have[lbl]) continue;
     var rec = findFee_(fees, s['Student ID'], lbl);
     var amount = rec ? money_(rec['Amount']) : fee, paid = rec ? money_(rec['Paid']) : 0;
-    if (amount - paid > 0) months.push({ studentId: s['Student ID'], name: s['Student Name'], month: lbl, monthIndex: m, amount: amount, paid: paid, due: money_(amount - paid), recorded: !!rec, advance: m > cur });
+    if (amount - paid > 0) months.push({ studentId: s['Student ID'], name: s['Student Name'], month: lbl, monthIndex: m, amount: amount, paid: paid, due: money_(amount - paid), recorded: !!rec, advance: m > lastBilledMonth_(s, cur) });
   }
   months.sort(function (a, b) { return a.monthIndex - b.monthIndex; });
   var history = fees.filter(function (f) { return String(f['Student ID']) === String(s['Student ID']); })

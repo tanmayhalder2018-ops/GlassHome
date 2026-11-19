@@ -37,10 +37,10 @@ function SettingsForm({ tab }: { tab: 'academy' | 'invoices' | 'fees' }) {
   const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => setF(d.settings), [d.settings]);
   const set = (k: keyof S, v: string) => setF((x) => ({ ...x, [k]: v }));
-  const fields: Record<typeof tab, (keyof S)[]> = { academy: ['academyName', 'studioName', 'tagline', 'address', 'phone', 'whatsapp', 'email', 'website', 'logo'], invoices: ['invoicePrefix', 'invoiceFooter', 'signatory', 'invoiceTemplate'], fees: ['paymentMethods', 'feeStartMonth', 'feeDueDay', 'reminderDaysBefore', 'reminderTemplate', 'expenseCategories', 'calendarSync'] };
+  const fields: Record<typeof tab, (keyof S)[]> = { academy: ['academyName', 'studioName', 'tagline', 'address', 'phone', 'whatsapp', 'email', 'website', 'logo'], invoices: ['invoicePrefix', 'invoiceFooter', 'signatory', 'invoiceTemplate'], fees: ['paymentMethods', 'feeStartMonth', 'defaultBilling', 'feeDueDay', 'reminderDaysBefore', 'reminderTemplate', 'expenseCategories', 'calendarSync'] };
   const save = async () => {
     setBusy(true); setErr('');
-    try { const payload: Partial<S> = {}; fields[tab].forEach((k) => { if (f[k] !== d.settings[k]) payload[k] = f[k]; }); await mutate('settings.save', { settings: payload }); toast('Settings saved'); }
+    try { const payload: Record<string, string> = {}; fields[tab].forEach((k) => { if (f[k] !== d.settings[k]) payload[k] = String(f[k]); }); await mutate('settings.save', { settings: payload }); toast('Settings saved'); }
     catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };
   const logo = async (file?: File) => { if (!file) return; try { const v = await imageToPng(file); if (v.length > 45000) throw new Error('That image is too large even after resizing. Use a simpler logo.'); set('logo', v); } catch (e) { toast((e as Error).message, 'error'); } };
@@ -69,7 +69,8 @@ function SettingsForm({ tab }: { tab: 'academy' | 'invoices' | 'fees' }) {
         </>}
         {tab === 'fees' && <>
           <Field label="Payment methods" className="sm:col-span-2" hint="Comma separated"><Input value={f.paymentMethods} onChange={(e) => set('paymentMethods', e.target.value)} /></Field>
-          <Field label="Count pending fees from" hint='Month, e.g. "November 2026"'><Input value={f.feeStartMonth} onChange={(e) => set('feeStartMonth', e.target.value)} /></Field>
+          <Field label="Default fee billing" hint="Can be changed per student"><Select value={f.defaultBilling} onChange={(e) => set('defaultBilling', e.target.value)}><option value="Postpaid">Postpaid – November collects October</option><option value="Prepaid">Prepaid – November collects November</option></Select></Field>
+          <Field label="First month billed" hint='Fees before this month are not counted, e.g. "October 2026"'><Input value={f.feeStartMonth} onChange={(e) => set('feeStartMonth', e.target.value)} /></Field>
           <Field label="Fee due day of month" hint="1–28"><Input type="number" min={1} max={28} value={f.feeDueDay} onChange={(e) => set('feeDueDay', e.target.value)} /></Field>
           <Field label="Show upcoming reminders (days before due)"><Input type="number" min={1} max={20} value={f.reminderDaysBefore} onChange={(e) => set('reminderDaysBefore', e.target.value)} /></Field>
           <Field label="Sync attendance to Google Calendar"><Select value={f.calendarSync} onChange={(e) => set('calendarSync', e.target.value)}><option value="true">On (existing behaviour)</option><option value="false">Off (faster saving)</option></Select></Field>

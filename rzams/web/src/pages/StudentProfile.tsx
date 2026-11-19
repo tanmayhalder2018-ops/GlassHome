@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Archive, ArchiveRestore, ArrowLeft, Bell, CalendarDays, FileText, Mail, MapPin, MessageCircle, Pencil, Phone, Trash2, Wallet } from 'lucide-react';
 import { useApp, useData } from '../lib/store';
 import type { Payment } from '../lib/types';
-import { attStats, batchOf, courseName, occurrences, payStatus } from '../lib/derive';
+import { attStats, batchOf, billingOf, courseName, feeDueDate, occurrences, payStatus } from '../lib/derive';
 import { addDays, fmtDate, fmtPhone, fmtTime, monthIndexOfIso, monthLabel, rupees } from '../lib/format';
 import { waNumber, openWhatsApp } from '../lib/share';
 import { Avatar, Badge, Button, Card, EmptyState, Progress, StatCard, TableWrap, Tabs, useUi } from '../components/ui';
@@ -108,6 +108,7 @@ export default function StudentProfile() {
                 {batch?.location && <Info k="Location" v={batch.location} />}
                 <Info k="Teacher" v={teacher?.name || '—'} />
                 <Info k="Monthly fee" v={rupees(s.fee)} />
+                <Info k="Fee billing" v={billingOf(d, s) === 'Postpaid' ? 'Postpaid – pays after the month' : 'Prepaid – pays at the start of the month'} />
                 <Info k="This month's attendance" v={thisMonth.pct === null ? 'No classes marked yet' : `${thisMonth.pct}% (${thisMonth.present}/${thisMonth.present + thisMonth.absent})`} />
               </dl>
             </Card>
@@ -137,7 +138,7 @@ export default function StudentProfile() {
         {tab === 'dues' && (
           <Card padded={false} title="Outstanding dues" action={due > 0 && <div className="flex gap-2"><Button size="sm" icon={<Bell className="size-3.5" />} onClick={() => setRemind(true)}>Remind</Button><Button size="sm" variant="primary" onClick={() => setPaying(true)}>Collect</Button></div>}>
             {!dues.length ? <EmptyState title="No dues" text="This student is fully paid up." /> : <TableWrap><table className="table"><thead><tr><th>Month</th><th className="text-right">Fee</th><th className="text-right">Paid</th><th className="text-right">Due</th></tr></thead><tbody>{dues.map((p) => (
-              <tr key={p.month}><td>{p.month}{p.monthIndex < cur && <span className="ml-2"><Badge tone="red">overdue</Badge></span>}</td><td className="num text-right">{rupees(p.amount)}</td><td className="num text-right muted">{rupees(p.paid)}</td><td className="num text-right font-medium text-red-600 dark:text-red-400">{rupees(p.due)}</td></tr>))}
+              <tr key={p.month}><td>{p.month}<span className="ml-2 text-[12px] faint">due {fmtDate(feeDueDate(d, s, p.monthIndex), { day: 'numeric', month: 'short' })}</span>{feeDueDate(d, s, p.monthIndex) < d.meta.today && <span className="ml-2"><Badge tone="red">overdue</Badge></span>}</td><td className="num text-right">{rupees(p.amount)}</td><td className="num text-right muted">{rupees(p.paid)}</td><td className="num text-right font-medium text-red-600 dark:text-red-400">{rupees(p.due)}</td></tr>))}
               <tr><td className="font-semibold">Total</td><td /><td /><td className="num text-right font-semibold">{rupees(due)}</td></tr></tbody></table></TableWrap>}
           </Card>
         )}

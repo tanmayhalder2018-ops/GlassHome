@@ -6,14 +6,14 @@ import { cleanPhone } from '../lib/format';
 import { imageToJpeg } from '../lib/share';
 import { Avatar, Button, Field, Input, Modal, Select, Textarea, useUi } from './ui';
 
-type Form = { name: string; parentName: string; phone: string; whatsapp: string; sameWa: boolean; email: string; address: string; joinDate: string; courseId: string; batchId: string; fee: string; status: 'Active' | 'Inactive'; notes: string; photo: string };
+type Form = { billing: 'Postpaid' | 'Prepaid'; name: string; parentName: string; phone: string; whatsapp: string; sameWa: boolean; email: string; address: string; joinDate: string; courseId: string; batchId: string; fee: string; status: 'Active' | 'Inactive'; notes: string; photo: string };
 
 export default function StudentForm({ open, onClose, student, onSaved }: { open: boolean; onClose: () => void; student?: Student; onSaved?: (s: Student) => void }) {
   const data = useData();
   const { mutate } = useApp();
   const { toast } = useUi();
   const fileRef = useRef<HTMLInputElement>(null);
-  const empty: Form = { name: '', parentName: '', phone: '', whatsapp: '', sameWa: true, email: '', address: '', joinDate: data.meta.today, courseId: '', batchId: '', fee: '', status: 'Active', notes: '', photo: '' };
+  const empty: Form = { billing: data.settings.defaultBilling === 'Prepaid' ? 'Prepaid' : 'Postpaid', name: '', parentName: '', phone: '', whatsapp: '', sameWa: true, email: '', address: '', joinDate: data.meta.today, courseId: '', batchId: '', fee: '', status: 'Active', notes: '', photo: '' };
   const [f, setF] = useState<Form>(empty);
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
   const [busy, setBusy] = useState(false);
@@ -24,6 +24,7 @@ export default function StudentForm({ open, onClose, student, onSaved }: { open:
   if (openKey && openKey !== seenKey) {
     setSeenKey(openKey); setErrors({}); setError('');
     setF(student ? {
+      billing: student.billing === 'Prepaid' || student.billing === 'Postpaid' ? student.billing : (data.settings.defaultBilling === 'Prepaid' ? 'Prepaid' : 'Postpaid'),
       name: student.name, parentName: student.parentName, phone: cleanPhone(student.phone) || student.phone, whatsapp: cleanPhone(student.whatsapp),
       sameWa: !student.whatsapp || cleanPhone(student.whatsapp) === cleanPhone(student.phone), email: student.email, address: student.address,
       joinDate: student.joinDate, courseId: student.courseId, batchId: student.batchId, fee: String(student.fee ?? ''), status: student.status, notes: student.notes, photo: student.photo,
@@ -61,7 +62,7 @@ export default function StudentForm({ open, onClose, student, onSaved }: { open:
     if (!validate()) return;
     setBusy(true);
     try {
-      const payload = { id: student?.id, name: f.name, parentName: f.parentName, phone: f.phone, whatsapp: f.sameWa ? f.phone : f.whatsapp, email: f.email, address: f.address, joinDate: f.joinDate, courseId: f.courseId, batchId: f.batchId, fee: f.fee, status: f.status, notes: f.notes, photo: f.photo, instrument: student?.instrument, batch: student?.batch };
+      const payload = { id: student?.id, name: f.name, parentName: f.parentName, phone: f.phone, whatsapp: f.sameWa ? f.phone : f.whatsapp, email: f.email, address: f.address, joinDate: f.joinDate, courseId: f.courseId, batchId: f.batchId, fee: f.fee, billing: f.billing, status: f.status, notes: f.notes, photo: f.photo, instrument: student?.instrument, batch: student?.batch };
       const r = await mutate<{ student: Student }>('students.save', payload);
       toast(student ? 'Student updated' : `Student added · ${r.student.id}`);
       onSaved?.(r.student); onClose();
@@ -106,6 +107,7 @@ export default function StudentForm({ open, onClose, student, onSaved }: { open:
               <Select value={f.batchId} onChange={(e) => set('batchId', e.target.value)}><option value="">Not assigned</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>
             </Field>
             <Field label="Monthly fee (₹) *" error={errors.fee}><Input type="number" min={0} inputMode="numeric" value={f.fee} onChange={(e) => set('fee', e.target.value)} aria-invalid={!!errors.fee} data-testid="st-fee" /></Field>
+            <Field label="Fee billing" hint={f.billing === 'Postpaid' ? 'Pays after the month (November collects October)' : 'Pays at the start of the month'}><Select value={f.billing} onChange={(e) => set('billing', e.target.value as Form['billing'])} data-testid="st-billing"><option value="Postpaid">Postpaid</option><option value="Prepaid">Prepaid</option></Select></Field>
             <Field label="Status"><Select value={f.status} onChange={(e) => set('status', e.target.value as Form['status'])}><option value="Active">Active</option><option value="Inactive">Inactive (archived)</option></Select></Field>
             <Field label="Notes" className="sm:col-span-2"><Textarea rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
           </div>

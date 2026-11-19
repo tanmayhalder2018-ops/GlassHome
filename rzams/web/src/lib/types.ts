@@ -5,7 +5,7 @@ export interface UserRow extends User { status: 'Active' | 'Disabled'; lastLogin
 export interface Student {
   id: string; name: string; phone: string; parentName: string; instrument: string; batch: string; fee: number;
   joinDate: string; status: 'Active' | 'Inactive'; whatsapp: string; email: string; address: string; photo: string;
-  courseId: string; batchId: string; notes: string; updatedAt: string;
+  courseId: string; batchId: string; notes: string; updatedAt: string; billing: '' | 'Postpaid' | 'Prepaid';
 }
 export interface FeeRow { studentId: string; studentName: string; month: string; amount: number; paid: number; due: number; paymentDate: string }
 export interface Allocation { month: string; amount: number; fee: number; dueAfter: number }
@@ -31,7 +31,7 @@ export interface Meta { today: string; currentMonth: string; currentMonthIndex: 
 export interface Settings {
   academyName: string; studioName: string; tagline: string; address: string; phone: string; whatsapp: string; email: string; website: string;
   invoicePrefix: string; invoiceFooter: string; signatory: string; paymentMethods: string; expenseCategories: string;
-  feeStartMonth: string; feeDueDay: string; reminderDaysBefore: string; calendarSync: string; logo: string;
+  feeStartMonth: string; defaultBilling: 'Postpaid' | 'Prepaid'; feeDueDay: string; reminderDaysBefore: string; calendarSync: string; logo: string;
   reminderTemplate: string; invoiceTemplate: string;
 }
 

@@ -11,6 +11,13 @@ export function batchOf(d: AppData, s: Student) { return d.batches.find((b) => b
 export function pendingFor(d: AppData, studentId: string) { return d.pending.filter((p) => p.studentId === studentId); }
 export function balanceOf(d: AppData, studentId: string) { return pendingFor(d, studentId).reduce((a, p) => a + p.due, 0); }
 
+// Postpaid: a month's fee is due in the next month (November collects October). Prepaid: due in the same month.
+export function billingOf(d: AppData, s: Student): 'Postpaid' | 'Prepaid' { return s.billing === 'Prepaid' || s.billing === 'Postpaid' ? s.billing : d.settings.defaultBilling === 'Prepaid' ? 'Prepaid' : 'Postpaid'; }
+/** latest month whose fee is already due */
+export function lastBilledMonth(d: AppData, s: Student) { return billingOf(d, s) === 'Prepaid' ? d.meta.currentMonthIndex : d.meta.currentMonthIndex - 1; }
+/** date a given month's fee is due for this student */
+export function feeDueDate(d: AppData, s: Student | undefined, monthIdx: number) { return dueDateOf(monthIdx + (s && billingOf(d, s) === 'Postpaid' ? 1 : 0), Number(d.settings.feeDueDay) || 10); }
+
 export type PayStatus = 'Paid' | 'Partial' | 'Due' | 'Inactive';
 export function payStatus(d: AppData, s: Student): PayStatus {
   if (s.status !== 'Active') return 'Inactive';
@@ -44,36 +51,34 @@ export function dueDateOf(monthIdx: number, dueDay: number) { return `${Math.flo
 
 export interface DueSummary { student: Student; months: Pending[]; total: number; oldestDue: string; overdue: boolean }
 export function dueSummaries(d: AppData): DueSummary[] {
-  const dueDay = Number(d.settings.feeDueDay) || 10;
   const sMap = byId(d.students), groups = new Map<string, Pending[]>();
   d.pending.forEach((p) => { if (!groups.has(p.studentId)) groups.set(p.studentId, []); groups.get(p.studentId)!.push(p); });
   const out: DueSummary[] = [];
   groups.forEach((months, id) => {
     const student = sMap.get(id); if (!student) return;
     months.sort((a, b) => a.monthIndex - b.monthIndex);
-    const oldestDue = dueDateOf(months[0].monthIndex, dueDay);
+    const oldestDue = feeDueDate(d, student, months[0].monthIndex);
     out.push({ student, months, total: months.reduce((a, m) => a + m.due, 0), oldestDue, overdue: oldestDue < d.meta.today });
   });
   return out.sort((a, b) => a.oldestDue.localeCompare(b.oldestDue) || b.total - a.total);
 }
 
-/** Active students whose next month starts soon (fee will be due within N days) – for "upcoming" reminders */
+/** Fees falling due within the next N days (not yet overdue) – for "upcoming" reminders */
 export function upcomingDues(d: AppData) {
-  const dueDay = Number(d.settings.feeDueDay) || 10, before = Number(d.settings.reminderDaysBefore) || 5;
-  const cur = d.meta.currentMonthIndex, today = d.meta.today, out: { student: Student; month: string; amount: number; dueDate: string }[] = [];
+  const before = Number(d.settings.reminderDaysBefore) || 5;
+  const today = d.meta.today, out: { student: Student; month: string; amount: number; dueDate: string }[] = [];
   const pendingKeys = new Set(d.pending.map((p) => `${p.studentId}|${p.month}`));
   const paid = new Set(d.fees.filter((f) => Number(f.due) <= 0).map((f) => `${f.studentId}|${f.month}`));
-  for (const mi of [cur, cur + 1]) {
-    const due = dueDateOf(mi, dueDay);
-    if (due < today || due > addDays(today, before)) continue;
-    d.students.filter((s) => s.status === 'Active' && Number(s.fee) > 0).forEach((s) => {
-      const k = `${s.id}|${monthLabel(mi)}`;
-      if (paid.has(k)) return;
-      if (mi === cur && !pendingKeys.has(k)) return; // not billed (joined later / before fee start)
+  d.students.filter((s) => s.status === 'Active' && Number(s.fee) > 0).forEach((s) => {
+    const last = lastBilledMonth(d, s);
+    for (const mi of [last, last + 1]) {
+      const due = feeDueDate(d, s, mi), k = `${s.id}|${monthLabel(mi)}`;
+      if (due < today || due > addDays(today, before) || paid.has(k)) continue;
+      if (mi === last && !pendingKeys.has(k)) continue; // not billed (joined later / before fee start)
       out.push({ student: s, month: monthLabel(mi), amount: Number(s.fee), dueDate: due });
-    });
-  }
-  return out;
+    }
+  });
+  return out.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
 // ---------------- Schedule ----------------

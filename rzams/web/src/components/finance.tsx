@@ -4,7 +4,7 @@ import { useApp, useData } from '../lib/store';
 import { newRequestId } from '../lib/api';
 import type { Payment, Pending, Student } from '../lib/types';
 import { cleanPhone, cx, fillTemplate, fmtDate, fmtPhone, monthIndex, monthLabel, rupees } from '../lib/format';
-import { courseName } from '../lib/derive';
+import { courseName, feeDueDate, lastBilledMonth } from '../lib/derive';
 import { buildInvoicePdf, invoiceFileName } from '../lib/invoice';
 import { downloadBlob, openWhatsApp, printBlob, shareFile, waNumber } from '../lib/share';
 import { Badge, Button, Field, Input, Modal, Select, Textarea, useUi } from './ui';
@@ -12,14 +12,14 @@ import { Badge, Button, Field, Input, Modal, Select, Textarea, useUi } from './u
 // ---------------- months a student can pay for (same rule as the server) ----------------
 export function payableMonths(data: ReturnType<typeof useData>, s: Student | undefined): Pending[] {
   if (!s) return [];
-  const cur = data.meta.currentMonthIndex;
-  const out: Pending[] = data.pending.filter((p) => p.studentId === s.id).map((p) => ({ ...p, advance: p.monthIndex > cur }));
+  const cur = data.meta.currentMonthIndex, upTo = lastBilledMonth(data, s);
+  const out: Pending[] = data.pending.filter((p) => p.studentId === s.id).map((p) => ({ ...p, advance: p.monthIndex > upTo }));
   const have = new Set(out.map((p) => p.month));
   for (let m = cur; m <= cur + 3; m++) {
     const lbl = monthLabel(m); if (have.has(lbl)) continue;
     const rec = data.fees.find((f) => f.studentId === s.id && f.month === lbl);
     const amount = rec ? Number(rec.amount) : Number(s.fee), paid = rec ? Number(rec.paid) : 0;
-    if (amount - paid > 0) out.push({ studentId: s.id, name: s.name, phone: s.phone, month: lbl, monthIndex: m, amount, paid, due: amount - paid, recorded: !!rec, advance: m > cur });
+    if (amount - paid > 0) out.push({ studentId: s.id, name: s.name, phone: s.phone, month: lbl, monthIndex: m, amount, paid, due: amount - paid, recorded: !!rec, advance: m > upTo });
   }
   return out.sort((a, b) => a.monthIndex - b.monthIndex);
 }
@@ -64,9 +64,10 @@ export function PaymentForm({ open, onClose, studentId, onRecorded }: { open: bo
   const paid = Number(amount) || 0;
   // Remaining = Previous Balance + Current Fee - Amount Paid (preview; the server recalculates)
   const pend = data.pending.filter((p) => p.studentId === sid);
-  let prev = pend.filter((p) => p.monthIndex < cur).reduce((a, p) => a + p.due, 0);
-  let current = pend.filter((p) => p.monthIndex >= cur).reduce((a, p) => a + p.due, 0);
-  selected.forEach((m) => { if (!pend.some((p) => p.month === m.month)) { if (m.monthIndex < cur) prev += m.due; else current += m.due; } });
+  const bm = student ? lastBilledMonth(data, student) : cur; // billing month: last month (postpaid) or this month (prepaid)
+  let prev = pend.filter((p) => p.monthIndex < bm).reduce((a, p) => a + p.due, 0);
+  let current = pend.filter((p) => p.monthIndex >= bm).reduce((a, p) => a + p.due, 0);
+  selected.forEach((m) => { if (!pend.some((p) => p.month === m.month)) { if (m.monthIndex < bm) prev += m.due; else current += m.due; } });
   const remaining = prev + current - paid;
   let rest = paid;
   const split = selected.map((m) => { const take = Math.min(rest, m.due); rest -= take; return { ...m, take }; });
@@ -111,7 +112,7 @@ export function PaymentForm({ open, onClose, studentId, onRecorded }: { open: bo
                 {months.map((m) => (
                   <label key={m.month} className={cx('flex cursor-pointer items-center gap-3 rounded-[10px] border px-3 py-2.5 transition-colors', checked.has(m.month) ? 'border-[var(--ring)] bg-[var(--surface-2)]' : 'border-[var(--border)]')}>
                     <input type="checkbox" className="size-4 accent-zinc-900 dark:accent-zinc-100" checked={checked.has(m.month)} onChange={() => toggle(m.month)} />
-                    <span className="flex-1 text-[13.5px] font-medium">{m.month}{m.advance && <span className="ml-1.5 text-[12px] font-normal faint">advance</span>}{m.monthIndex < cur && <span className="ml-1.5"><Badge tone="red">overdue</Badge></span>}</span>
+                    <span className="flex-1 text-[13.5px] font-medium">{m.month}{m.advance && <span className="ml-1.5 text-[12px] font-normal faint">advance</span>}{!m.advance && feeDueDate(data, student, m.monthIndex) < data.meta.today && <span className="ml-1.5"><Badge tone="red">overdue</Badge></span>}</span>
                     <span className="num text-right text-[12.5px]">{m.paid > 0 && <span className="faint">{rupees(m.paid)} paid · </span>}<span className={m.advance ? 'muted' : 'font-medium text-red-600 dark:text-red-400'}>{rupees(m.due)} due</span></span>
                   </label>
                 ))}

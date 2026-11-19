@@ -43,6 +43,15 @@ export default function Layout() {
   const { dark, toggle } = useTheme();
   const loc = useLocation();
   useEffect(() => { setMobileOpen(false); window.scrollTo(0, 0); }, [loc.pathname]);
+  // while the phone menu is open, lock the page behind it so only the menu scrolls
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const html = document.documentElement, body = document.body, y = window.scrollY, path = window.location.pathname;
+    const prev = { h: html.style.overflow, b: body.style.overflow, pos: body.style.position, top: body.style.top, w: body.style.width };
+    html.style.overflow = 'hidden'; body.style.overflow = 'hidden';
+    body.style.position = 'fixed'; body.style.top = `-${y}px`; body.style.width = '100%'; // iOS Safari ignores overflow:hidden alone
+    return () => { html.style.overflow = prev.h; body.style.overflow = prev.b; body.style.position = prev.pos; body.style.top = prev.top; body.style.width = prev.w; window.scrollTo(0, window.location.pathname === path ? y : 0); };
+  }, [mobileOpen]);
   useEffect(() => { try { localStorage.setItem('rzams_sidebar', collapsed ? 'collapsed' : 'open'); } catch { /* ignore */ } }, [collapsed]);
   const logo = data?.settings.logo || '/brand/rza-logo.png';
 
@@ -53,7 +62,7 @@ export default function Layout() {
         {(!collapsed || mobile) && <div className="min-w-0 leading-tight"><p className="truncate text-[13.5px] font-semibold">{data?.settings.academyName || 'Rhythm Zone Academy'}</p><p className="text-[11.5px] faint">RZAMS Pro</p></div>}
         {mobile && <IconButton label="Close menu" className="ml-auto" onClick={() => setMobileOpen(false)}><X className="size-4" /></IconButton>}
       </div>
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3">
         {NAV.map((g, gi) => {
           const items = g.items.filter((i) => !i.admin || isAdmin);
           if (!items.length) return null;
@@ -61,7 +70,7 @@ export default function Layout() {
             <div key={gi} className="mb-3">
               {g.group && (!collapsed || mobile) && <p className="mb-1 px-2.5 text-[11px] font-medium uppercase tracking-wide faint">{g.group}</p>}
               {items.map((i) => (
-                <NavLink key={i.to} to={i.to} end={i.to === '/'} title={collapsed && !mobile ? i.label : undefined}
+                <NavLink key={i.to} to={i.to} end={i.to === '/'} title={collapsed && !mobile ? i.label : undefined} onClick={() => mobile && setMobileOpen(false)}
                   className={({ isActive }) => cx('group relative mb-0.5 flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-[13.5px] font-medium transition-colors [&>svg]:size-[18px] [&>svg]:shrink-0',
                     collapsed && !mobile && 'justify-center px-0',
                     isActive ? 'bg-[var(--surface-2)] text-[var(--text)]' : 'text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]')}>
@@ -86,9 +95,9 @@ export default function Layout() {
     <div className="min-h-full">
       <aside className={cx('no-print fixed inset-y-0 left-0 z-30 hidden border-r border-[var(--border)] bg-[var(--surface)] transition-[width] duration-200 lg:block', collapsed ? 'w-[68px]' : 'w-[248px]')}>{sidebar(false)}</aside>
       {mobileOpen && (
-        <div className="no-print fixed inset-0 z-40 lg:hidden">
-          <div className="anim-fade absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-[272px] max-w-[85vw] border-r border-[var(--border)] bg-[var(--surface)] shadow-xl">{sidebar(true)}</aside>
+        <div className="no-print fixed inset-0 z-40 overscroll-contain lg:hidden">
+          <div className="anim-fade absolute inset-0 touch-none bg-black/40" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 flex h-[100dvh] w-[272px] max-w-[85vw] flex-col overscroll-contain border-r border-[var(--border)] bg-[var(--surface)] shadow-xl">{sidebar(true)}</aside>
         </div>
       )}
       <div className={cx('transition-[padding] duration-200', collapsed ? 'lg:pl-[68px]' : 'lg:pl-[248px]')}>

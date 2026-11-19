@@ -102,10 +102,12 @@ async function run(label, ctxOpts) {
   // ---- edit student
   await page.getByTestId('profile-edit').click();
   await page.getByTestId('st-fee').fill('750');
+  await page.getByTestId('st-billing').selectOption('Postpaid');
   await page.getByTestId('save-student').click();
   await toast(/Student updated/);
   assert.match(await page.locator('main').textContent(), /Monthly fee₹750/);
-  step('edit student: fee 700 → 750');
+  assert.match(await page.locator('main').textContent(), /Fee billingPostpaid – pays after the month/);
+  step('edit student: fee 700 → 750, billing set to Postpaid');
 
   // ---- record a split payment from the profile, invoice, WhatsApp
   await page.getByTestId('profile-pay').click();
@@ -253,6 +255,25 @@ async function run(label, ctxOpts) {
   assert.equal(await page.locator('nav a', { hasText: /^Expenses$/ }).count(), 0, 'staff cannot see Expenses');
   if (mobile) await page.getByRole('button', { name: 'Close menu' }).click();
   step('settings saved; staff user created; staff login has no Expenses or admin settings');
+
+  // ---- phone menu: page behind it must not scroll
+  if (mobile) {
+    await go('Dashboard');
+    await page.evaluate(() => window.scrollTo(0, 400));
+    await page.waitForTimeout(100);
+    const y0 = await page.evaluate(() => window.scrollY);
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).position), 'fixed', 'page locked while menu open');
+    const box = await page.locator('aside nav').last().boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(200);
+    assert.equal(await page.evaluate(() => document.body.style.top), `-${y0}px`, 'page did not move behind the menu');
+    await page.getByRole('button', { name: 'Close menu' }).click();
+    await page.waitForTimeout(100);
+    assert.equal(await page.evaluate(() => window.scrollY), y0, 'scroll position restored after closing');
+    step('phone menu: scrolling the menu does not scroll the page; position restored on close');
+  }
 
   // ---- dark theme + mobile overflow checks
   await page.getByRole('button', { name: 'Dark theme' }).click();

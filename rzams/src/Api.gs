@@ -24,7 +24,7 @@ var PRO_SCHEMA = {
     ['id', 'Student ID', 'text'], ['name', 'Student Name'], ['phone', 'Phone', 'text'], ['parentName', 'Parent Name'],
     ['instrument', 'Instrument'], ['batch', 'Batch'], ['fee', 'Monthly Fee', 'num'], ['joinDate', 'Join Date', 'date'], ['status', 'Status'],
     ['whatsapp', 'WhatsApp', 'text'], ['email', 'Email'], ['address', 'Address'], ['photo', 'Photo', 'text'],
-    ['courseId', 'Course ID', 'text'], ['batchId', 'Batch ID', 'text'], ['notes', 'Notes'], ['updatedAt', 'Updated At', 'text']] },
+    ['courseId', 'Course ID', 'text'], ['batchId', 'Batch ID', 'text'], ['notes', 'Notes'], ['updatedAt', 'Updated At', 'text'], ['billing', 'Billing']] },
   fees: { sheet: 'Fees', cols: [
     ['studentId', 'Student ID', 'text'], ['studentName', 'Student Name'], ['month', 'Month', 'month'], ['amount', 'Amount', 'num'],
     ['paid', 'Paid', 'num'], ['due', 'Due', 'num'], ['paymentDate', 'Payment Date', 'date']] },
@@ -89,6 +89,7 @@ var DEFAULT_SETTINGS = {
   paymentMethods: 'Cash,UPI,Bank Transfer',
   expenseCategories: 'Rent,Electricity,Internet,Instruments & Repairs,Teacher Payment,Marketing,Studio Equipment,Miscellaneous',
   feeStartMonth: DEFAULT_FEE_START_MONTH,
+  defaultBilling: 'Postpaid',
   feeDueDay: '10',
   reminderDaysBefore: '5',
   calendarSync: 'true',
@@ -307,6 +308,7 @@ function apiSaveSettings_(d) {
     else v = v.slice(0, 2000);
     if (k === 'feeStartMonth' && monthIndex_(v) < 0) throw apiError_('Fee start month must look like "November 2026".');
     if (k === 'feeDueDay' && !(+v >= 1 && +v <= 28)) throw apiError_('Fee due day must be between 1 and 28.');
+    if (k === 'defaultBilling' && v !== 'Postpaid' && v !== 'Prepaid') throw apiError_('Default billing must be Postpaid or Prepaid.');
     if (k === 'invoicePrefix' && !/^[A-Z0-9-]{1,10}$/i.test(v)) throw apiError_('Invoice prefix: letters, numbers or "-" (max 10).');
     if (k === 'paymentMethods' && !v.split(',').filter(function (x) { return x.trim(); }).length) throw apiError_('Add at least one payment method.');
     setSetting_(k, v); changed.push(k);
@@ -464,7 +466,7 @@ function metaInfo_() {
 // ---------------------------------------------------------------------
 // Pending fees (shared rule with the legacy screen: computePending_ in Code.gs)
 // ---------------------------------------------------------------------
-function legacyStudent_(s) { return { 'Student ID': s.id, 'Student Name': s.name, 'Phone': s.phone, 'Monthly Fee': s.fee, 'Join Date': s.joinDate, 'Status': s.status }; }
+function legacyStudent_(s) { return { 'Student ID': s.id, 'Student Name': s.name, 'Phone': s.phone, 'Monthly Fee': s.fee, 'Join Date': s.joinDate, 'Status': s.status, 'Billing': s.billing }; }
 function legacyFee_(f) { return { 'Student ID': f.studentId, 'Student Name': f.studentName, 'Month': f.month, 'Amount': f.amount, 'Paid': f.paid, 'Due': f.due }; }
 
 function pendingFor_(students, fees) {
@@ -477,16 +479,16 @@ function studentFeeStatus_(studentId) {
   var s = findBy_('students', 'id', studentId);
   if (!s) throw apiError_('Student not found.');
   var fees = rowsOf_('fees').filter(function (f) { return String(f.studentId) === String(s.id); });
-  var cur = currentMonthIndex_(), fee = money_(s.fee);
+  var cur = currentMonthIndex_(), fee = money_(s.fee), upTo = lastBilledMonth_(legacyStudent_(s), cur);
   var months = pendingFor_([clean_(s)], fees);
   var have = {}; months.forEach(function (m) { have[m.month] = 1; });
   for (var m = cur; m <= cur + 3; m++) {
     var lbl = monthLabel_(m); if (have[lbl]) continue;
     var rec = fees.filter(function (f) { return f.month === lbl; })[0];
     var amount = rec ? money_(rec.amount) : fee, paid = rec ? money_(rec.paid) : 0;
-    if (amount - paid > 0) months.push({ studentId: s.id, name: s.name, month: lbl, monthIndex: m, amount: amount, paid: paid, due: money_(amount - paid), recorded: !!rec, advance: m > cur });
+    if (amount - paid > 0) months.push({ studentId: s.id, name: s.name, month: lbl, monthIndex: m, amount: amount, paid: paid, due: money_(amount - paid), recorded: !!rec, advance: m > upTo });
   }
-  months.forEach(function (x) { if (x.advance === undefined) x.advance = x.monthIndex > cur; });
+  months.forEach(function (x) { if (x.advance === undefined) x.advance = x.monthIndex > upTo; });
   months.sort(function (a, b) { return a.monthIndex - b.monthIndex; });
   return { student: clean_(s), months: months };
 }
@@ -541,9 +543,11 @@ function recordPayment_(d) {
 
   var fees = readTable_('fees').rows.filter(function (f) { return String(f.studentId) === String(student.id); });
   var cur = currentMonthIndex_(), fee = money_(student.fee);
+  // billing month: the latest month already due (last month for postpaid, this month for prepaid)
+  var bm = lastBilledMonth_(legacyStudent_(student), cur), offset = dueOffset_(legacyStudent_(student));
   var before = pendingFor_([clean_(student)], fees.map(clean_));
   var previousBalance = 0, currentFee = 0, counted = {};
-  before.forEach(function (p) { counted[p.month] = 1; if (p.monthIndex < cur) previousBalance += p.due; else currentFee += p.due; });
+  before.forEach(function (p) { counted[p.month] = 1; if (p.monthIndex < bm) previousBalance += p.due; else currentFee += p.due; });
 
   var remainingPay = amount, plan = [];
   idxs.forEach(function (mi) {
@@ -552,7 +556,7 @@ function recordPayment_(d) {
     var already = rec ? money_(rec.paid) : 0, due = money_(amt - already);
     // selected months that are not already in the pending list (advance months, or
     // months before the fee start month) are added to this bill
-    if (!counted[lbl] && due > 0) { if (mi < cur) previousBalance += due; else currentFee += due; }
+    if (!counted[lbl] && due > 0) { if (mi < bm) previousBalance += due; else currentFee += due; }
     var take = Math.min(remainingPay, Math.max(due, 0));
     remainingPay = money_(remainingPay - take);
     plan.push({ mi: mi, lbl: lbl, rec: rec, amount: amt, already: already, take: take });
@@ -578,7 +582,7 @@ function recordPayment_(d) {
   var nextIdx;
   if (after.length) nextIdx = after[0].monthIndex;
   else {
-    nextIdx = cur + 1;
+    nextIdx = bm + 1;
     feesAfter.forEach(function (f) { var mi = monthIndex_(f.month); if (mi >= nextIdx && money_(f.due) <= 0) nextIdx = mi + 1; });
   }
   var course = student.courseId ? findBy_('courses', 'id', student.courseId) : null;
@@ -587,7 +591,7 @@ function recordPayment_(d) {
     id: nextId_('payments', 'PAY'), date: date, studentId: student.id, studentName: student.name,
     course: course ? course.name : student.instrument, amount: amount, method: method, reference: cleanText_(d.reference, 80),
     months: allocation.map(function (a) { return a.month; }).join(', '), allocation: allocation,
-    previousBalance: previousBalance, currentFee: currentFee, remaining: remaining, nextDueDate: (function (dd) { return dd < date ? date : dd; })(dueDateFor_(nextIdx, settings.feeDueDay)), // never before the invoice date
+    previousBalance: previousBalance, currentFee: currentFee, remaining: remaining, nextDueDate: (function (dd) { return dd < date ? date : dd; })(dueDateFor_(nextIdx + offset, settings.feeDueDay)), // never before the invoice date
     invoiceNo: invoiceNo, status: remaining > 0 ? 'Partial' : 'Paid', notes: cleanText_(d.notes, 300), requestId: requestId,
     recordedBy: REQ_.user ? REQ_.user.username : 'legacy', createdAt: nowIso_(), voidReason: ''
   };
@@ -639,7 +643,8 @@ function apiSaveStudent_(d) {
     name: cleanText_(s.name, 100), phone: cleanPhone_(s.phone), parentName: cleanText_(s.parentName, 100),
     whatsapp: s.whatsapp ? cleanPhone_(s.whatsapp) : '', email: cleanText_(s.email, 120).toLowerCase(), address: cleanText_(s.address, 300),
     courseId: cleanText_(s.courseId, 20), batchId: cleanText_(s.batchId, 20), fee: Number(s.fee), notes: cleanText_(s.notes, 500),
-    joinDate: s.joinDate ? isoDate_(s.joinDate) : '', status: s.status === 'Inactive' ? 'Inactive' : 'Active'
+    joinDate: s.joinDate ? isoDate_(s.joinDate) : '', status: s.status === 'Inactive' ? 'Inactive' : 'Active',
+    billing: s.billing === 'Prepaid' || s.billing === 'Postpaid' ? s.billing : (existing ? existing.billing : '')
   };
   if (!c.name) throw apiError_('Student name is required.');
   if (!c.phone) throw apiError_('Enter a valid 10-digit phone number.');

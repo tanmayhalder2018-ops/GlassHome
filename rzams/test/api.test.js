@@ -305,3 +305,44 @@ test('studio and tasks through the API keep working on the old tabs', () => {
   const done = ok('tasks.save', { row: t.row, expected: 'Tune guitars', task: 'Tune guitars', priority: 'High', status: 'Completed' }).replace.tasks[0];
   assert.equal(done.status, 'Completed');
 });
+
+test('postpaid (default): this month collects last month; prepaid students pay the current month', () => {
+  const { ok } = setup();
+  ok('settings.save', { settings: { defaultBilling: 'Postpaid', feeStartMonth: 'October 2026' } });
+  let b = ok('app.bootstrap', {});
+  // STU001 (joined July): October due. STU005: October balance ₹200. STU002 joined in November -> nothing due yet.
+  assert.deepEqual(b.pending.map((p) => `${p.studentId}|${p.month}|${p.due}`).sort(), ['STU001|October 2026|500', 'STU005|October 2026|200']);
+  // one student switched to prepaid owes the current month
+  const s2 = b.students.find((s) => s.id === 'STU002');
+  ok('students.save', { ...s2, billing: 'Prepaid' });
+  b = ok('app.bootstrap', {});
+  assert.ok(b.pending.some((p) => p.studentId === 'STU002' && p.month === CUR && p.due === 700));
+  assert.equal(b.students.find((s) => s.id === 'STU002').billing, 'Prepaid');
+  // status: November is an advance month for a postpaid student
+  const st = ok('payments.studentStatus', { studentId: 'STU001' });
+  assert.equal(st.months[0].month, 'October 2026');
+  assert.equal(st.months[0].advance, false);
+  assert.equal(st.months.find((m) => m.month === CUR).advance, true);
+  // paying October (postpaid): current fee = October, nothing previous; next fee (November) is due on the 10th of next month
+  const p = ok('payments.record', { studentId: 'STU001', months: ['October 2026'], amount: 500, method: 'Cash' }).payment;
+  assert.equal(p.previousBalance, 0);
+  assert.equal(p.currentFee, 500);
+  assert.equal(p.remaining, 0);
+  const nm = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  assert.equal(p.nextDueDate, `${nm.getFullYear()}-${String(nm.getMonth() + 1).padStart(2, '0')}-10`);
+  // paying October + November in advance
+  const p2 = ok('payments.record', { studentId: 'STU005', months: ['October 2026', CUR], amount: 800, method: 'Cash' }).payment;
+  assert.equal(p2.previousBalance, 0);
+  assert.equal(p2.currentFee, 200 + 600, 'October balance + November in advance');
+  assert.equal(p2.remaining, 0);
+  assert.match(String(ok('settings.save', { settings: { defaultBilling: 'Postpaid' } }).settings.defaultBilling), /Postpaid/);
+});
+
+test('settings: default billing must be Postpaid or Prepaid; student billing kept when not sent', () => {
+  const { ok, call } = setup();
+  assert.match(call('settings.save', { settings: { defaultBilling: 'Monthly' } }).error, /Postpaid or Prepaid/);
+  const s = ok('app.bootstrap', {}).students.find((x) => x.id === 'STU001');
+  ok('students.save', { ...s, billing: 'Postpaid' });
+  const again = ok('students.save', { id: s.id, name: s.name, phone: s.phone, fee: s.fee, status: 'Active' }).student;
+  assert.equal(again.billing, 'Postpaid');
+});
