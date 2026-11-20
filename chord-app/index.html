@@ -443,7 +443,7 @@ footer .ver{font-family:var(--f-mono);padding:1px 6px;border-radius:6px;backgrou
 
   <footer>
     <p>Chords are estimated by signal analysis and can be wrong. Your audio stays on your device.</p>
-    <p class="credit">ChordSathi <span class="ver">v1.7.0</span> · App design by <b>Tanmay Halder</b><span id="licTo"></span></p>
+    <p class="credit">ChordSathi <span class="ver">v1.7.1</span> · App design by <b>Tanmay Halder</b><span id="licTo"></span></p>
   </footer>
 </div>
 
@@ -1330,9 +1330,9 @@ if('serviceWorker' in navigator && location.protocol!=='file:') navigator.servic
    Codes are signed with the owner's private key (kept out of this app, see admin.html);
    the app only holds the public key, so it can check a code but never make one. */
 const PRO={
-  upi:'',            // owner's UPI ID, e.g. name@okaxis
+  upi:'9733858288@apl',   // owner's UPI ID
   payee:'Tanmay Halder',
-  whatsapp:'',       // owner's WhatsApp number with country code, digits only, e.g. 9198xxxxxxxx
+  whatsapp:'919733858288', // owner's WhatsApp number with country code, digits only
   price:{m:99,y:1000}, trialDays:7,
   key:{"kty": "EC", "crv": "P-256", "x": "8TtBVsI_XTYAADfjMBIBL-p9eKlGJeX5zDJrHL5ktmA", "y": "DDH045phQb6Ndeh2uQhxBS4doxvr0KyE1GLN2yp4PY4"}
 };
