@@ -70,7 +70,7 @@ body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);min-height
 
 /* Buttons */
 button,select,input{font:inherit;color:inherit}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border-radius:var(--r-sm);
+.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border-radius:var(--r-sm);
   border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap;
   transition:background .15s,border-color .15s,transform .1s}
 .btn:hover{border-color:var(--muted)}
@@ -212,6 +212,46 @@ button,select,input{font:inherit;color:inherit}
 .howto ol{margin:10px 0 0 18px;padding:0;display:grid;gap:4px}
 .howto b{color:var(--fg)}
 
+/* Pro */
+.trialbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 14px;border-radius:var(--r-md);background:var(--accent-soft);border:1px solid var(--line);font-size:13.5px;font-weight:600}
+#proBtn.pro{color:var(--accent);border-color:var(--accent)}
+body.locked .wrap{filter:blur(4px);pointer-events:none;user-select:none}
+.modal{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-start;justify-content:center;overflow:auto;
+  background:rgba(10,10,12,.55);padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.pcard{position:relative;width:100%;max-width:460px;margin:auto 0;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px}
+.pclose{position:absolute;top:10px;right:10px}
+.phead{text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.phead h2{font:800 24px/1.1 var(--f-display);margin:0;letter-spacing:-.02em}
+.phead p{margin:0;font-size:14px;text-wrap:balance}
+.pcrown{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink)}
+.pcrown .i{width:24px;height:24px}
+.pstatus{padding:10px 12px;border-radius:var(--r-sm);background:var(--note-soft);font-size:13.5px}
+.perks{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:14px}
+.perks li{display:flex;gap:9px;align-items:flex-start}
+.perks .i{color:var(--good);margin-top:2px}
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.plan{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 12px 12px;border-radius:var(--r-md);border:1.5px solid var(--line);background:var(--surface-2);color:var(--fg);cursor:pointer;text-align:left}
+.plan.on{border-color:var(--accent);background:var(--accent-soft)}
+.plan .pn{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.plan .pp{font:800 26px/1.1 var(--f-display)}
+.plan .pd{font-size:12px;color:var(--muted)}
+.plan .ptag{position:absolute;top:-10px;right:10px;padding:2px 8px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:700}
+.steps{margin:0;padding-left:22px;display:grid;gap:12px;font-size:14px}
+.steps li{display:flex;flex-direction:column;gap:8px}
+.steps li::marker{font-weight:700;color:var(--accent)}
+.btn.wide{width:100%}
+.qrrow{display:flex;gap:12px;align-items:center}
+.qr{flex:none;background:#fff;border-radius:10px;padding:6px;line-height:0}
+.qr:empty{display:none}
+.qr svg{width:120px;height:120px;display:block}
+.small{font-size:12.5px}
+code{font-family:var(--f-mono);font-size:12.5px;word-break:break-all}
+.pinput{width:100%;height:40px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface-2);color:var(--fg);padding:0 12px;font-size:14px}
+.codebox{display:flex;gap:8px}
+.codebox .pinput{flex:1;min-width:0;font-family:var(--f-mono);font-size:12.5px}
+#codeMsg{margin:0;min-height:1em}
+#codeMsg.ok{color:var(--good)} #codeMsg.bad{color:var(--danger)}
+
 footer{color:var(--muted);font-size:12px;text-align:center;margin-top:8px}
 footer p{margin:0}
 footer .credit{margin-top:6px;font-size:11.5px;letter-spacing:.02em}
@@ -254,6 +294,8 @@ footer .ver{font-family:var(--f-mono);padding:1px 6px;border-radius:6px;backgrou
   <symbol id="i-piano" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v9M12 4v9M16 4v9M8 13v7M12 13v7M16 13v7"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
   <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol>
 </svg>
 
@@ -274,8 +316,11 @@ footer .ver{font-family:var(--f-mono);padding:1px 6px;border-radius:6px;backgrou
     </div>
     <div class="spacer"></div>
     <button class="btn sm hidden" id="installBtn"><svg class="i"><use href="#i-download"/></svg><span>Install</span></button>
+    <button class="btn sm" id="proBtn"><svg class="i"><use href="#i-crown"/></svg><span>Pro</span></button>
     <button class="btn icon" id="themeBtn" aria-label="Theme: system" title="Theme: system"><svg class="i"><use href="#i-auto"/></svg></button>
   </header>
+
+  <div class="trialbar hidden" id="trialBar"><span id="trialText"></span><button class="btn sm primary" id="trialBuy">Subscribe</button></div>
 
   <div class="bar">
     <div class="seg mode" role="tablist" aria-label="Mode">
@@ -398,8 +443,45 @@ footer .ver{font-family:var(--f-mono);padding:1px 6px;border-radius:6px;backgrou
 
   <footer>
     <p>Chords are estimated by signal analysis and can be wrong. Your audio stays on your device.</p>
-    <p class="credit">ChordSathi <span class="ver">v1.6.0</span> · App design by <b>Tanmay Halder</b></p>
+    <p class="credit">ChordSathi <span class="ver">v1.7.0</span> · App design by <b>Tanmay Halder</b><span id="licTo"></span></p>
   </footer>
+</div>
+
+<div class="modal hidden" id="proModal" role="dialog" aria-modal="true" aria-labelledby="proTitle">
+  <div class="pcard">
+    <button class="btn icon ghost pclose" id="proClose" aria-label="Close">✕</button>
+    <div class="phead">
+      <span class="pcrown"><svg class="i"><use href="#i-crown"/></svg></span>
+      <h2 id="proTitle">ChordSathi Pro</h2>
+      <p id="proSub" class="muted"></p>
+    </div>
+    <div id="proStatus" class="pstatus hidden"></div>
+    <ul class="perks">
+      <li><svg class="i"><use href="#i-check"/></svg>Unlimited songs with chords, BPM and bars</li>
+      <li><svg class="i"><use href="#i-check"/></svg>Live mic and YouTube tab mode</li>
+      <li><svg class="i"><use href="#i-check"/></svg>Guitar and piano diagrams, transpose and capo</li>
+      <li><svg class="i"><use href="#i-check"/></svg>Works offline · your audio never leaves your device</li>
+    </ul>
+    <div class="plans" role="radiogroup" aria-label="Plan">
+      <button class="plan" data-plan="m" role="radio" aria-checked="false"><span class="pn">Monthly</span><span class="pp">₹99</span><span class="pd">per month</span></button>
+      <button class="plan on" data-plan="y" role="radio" aria-checked="true"><span class="ptag">Save ₹188</span><span class="pn">Yearly</span><span class="pp">₹1000</span><span class="pd">per year · about ₹83 a month</span></button>
+    </div>
+    <ol class="steps" id="paySteps">
+      <li><b>Pay with UPI</b>
+        <a class="btn primary wide" id="upiBtn" href="#">Pay ₹1000 with UPI</a>
+        <div class="qrrow"><div id="qrBox" class="qr" aria-label="UPI QR code"></div>
+          <div class="muted small">Scan with any UPI app, or pay to<br><code id="upiId"></code> <button class="btn sm ghost" id="upiCopy">Copy</button></div></div>
+      </li>
+      <li><b>Send the payment screenshot</b>
+        <input id="buyerName" class="pinput" placeholder="Your name" autocomplete="name">
+        <a class="btn wide" id="waBtn" href="#" target="_blank" rel="noopener">Send on WhatsApp</a>
+      </li>
+      <li><b>Enter the access code you receive</b></li>
+    </ol>
+    <p id="noPay" class="muted small hidden">To subscribe, ask the app owner for an access code and enter it below.</p>
+    <div class="codebox"><input id="codeIn" class="pinput" placeholder="Access code (starts with CS-)" autocomplete="off" spellcheck="false"><button class="btn primary" id="codeBtn">Activate</button></div>
+    <p id="codeMsg" class="small" role="status"></p>
+  </div>
 </div>
 
 <script>
@@ -459,21 +541,52 @@ function makeFFT(n){
 }
 
 /* Spectrum magnitude -> 12-bin chroma (+ bass chroma), using peak picking */
-function spectrumToChroma(mag, binHz, chroma, bass){
+/* Spectrum -> 12-bin chroma (+ bass chroma). Peaks are picked, refined, and each peak is
+   reduced by the overtone energy expected from lower peaks (harmonics 2-6), so a note's
+   overtones (e.g. the 3rd harmonic of E is a B) don't pose as extra chord tones. */
+const _pk={f:new Float64Array(1024), a:new Float64Array(1024)};
+function spectrumToChroma(mag, binHz, chroma, bass, refHz=440){
   chroma.fill(0); bass.fill(0);
-  const kMin=Math.max(2,Math.floor(38/binHz)), kMax=Math.min(mag.length-2,Math.ceil(2100/binHz));
-  for(let k=kMin;k<=kMax;k++){
+  const kMin=Math.max(2,Math.floor(38/binHz)), kMax=Math.min(mag.length-2,Math.ceil(4200/binHz));
+  let n=0;
+  for(let k=kMin;k<=kMax&&n<1024;k++){
     const b=mag[k];
     if(b<=mag[k-1]||b<mag[k+1]||b<=0) continue;
-    const a=mag[k-1], c=mag[k+1], den=a-2*b+c;
-    const p=den!==0?0.5*(a-c)/den:0;
-    const f=(k+p)*binHz;
-    const midi=69+12*Math.log2(f/440);
+    const a=mag[k-1], c=mag[k+1], den=a-2*b+c, p=den!==0?0.5*(a-c)/den:0;
+    _pk.f[n]=(k+p)*binHz; _pk.a[n]=b; n++;
+  }
+  let maxA=0; for(let i=0;i<n;i++) if(_pk.a[i]>maxA) maxA=_pk.a[i];
+  const floor=maxA*0.004;
+  for(let i=0;i<n;i++){
+    const f=_pk.f[i]; if(f>2100) continue;
+    let amp=_pk.a[i]; if(amp<floor) continue;
+    // subtract expected overtone contributions of lower peaks
+    for(let h=2;h<=6;h++){
+      const target=f/h; if(target<38) break;
+      let lo=0, hi=i-1;
+      while(lo<hi){ const m=(lo+hi+1)>>1; if(_pk.f[m]<=target) lo=m; else hi=m-1; }
+      for(let q=Math.max(0,lo-1);q<=Math.min(i-1,lo+1);q++){
+        if(Math.abs(12*Math.log2(_pk.f[q]/target))<0.35){ amp-=_pk.a[q]*0.9/h; break; }
+      }
+    }
+    if(amp<=floor) continue;
+    const midi=69+12*Math.log2(f/refHz);
     const nearest=Math.round(midi), dev=Math.abs(midi-nearest);
-    const w=Math.sqrt(b)*Math.max(0,1-dev*1.6);
+    const w=Math.sqrt(amp)*Math.max(0,1-dev*1.6);
     const pc=((nearest%12)+12)%12;
-    if(f>=60&&f<=2100) chroma[pc]+=w;
-    if(f>=38&&f<=260) bass[pc]+=w;
+    if(f>=60) chroma[pc]+=w*(f>1100?0.6:1);
+    if(f<=260) bass[pc]+=w;
+  }
+}
+
+/* Tuning: where the song's notes sit relative to A=440 (circular mean of peak deviations) */
+function peakDeviation(mag,binHz,acc){
+  const kMin=Math.max(2,Math.floor(80/binHz)), kMax=Math.min(mag.length-2,Math.ceil(2000/binHz));
+  for(let k=kMin;k<=kMax;k++){
+    const b=mag[k]; if(b<=mag[k-1]||b<mag[k+1]||b<=0) continue;
+    const a=mag[k-1], c=mag[k+1], den=a-2*b+c, p=den!==0?0.5*(a-c)/den:0;
+    const midi=69+12*Math.log2((k+p)*binHz/440), dev=midi-Math.round(midi), w=Math.sqrt(b);
+    acc.c+=w*Math.cos(2*Math.PI*dev); acc.s+=w*Math.sin(2*Math.PI*dev);
   }
 }
 
@@ -497,13 +610,21 @@ async function extractFeatures(data, onProgress){
   const re=new Float64Array(NFFT), im=new Float64Array(NFFT), mag=new Float64Array(NFFT/2);
   const chroma=new Float64Array(nFrames*12), bass=new Float64Array(nFrames*12), energy=new Float64Array(nFrames);
   const c12=new Float64Array(12), b12=new Float64Array(12), binHz=SR/NFFT;
+  // Pass 1 (every 6th frame): estimate the tuning reference
+  const tacc={c:0,s:0};
+  for(let f=0;f<nFrames;f+=6){
+    const off=f*HOP; for(let i=0;i<NFFT;i++){ re[i]=(data[off+i]||0)*win[i]; im[i]=0; }
+    fft(re,im); for(let k=0;k<NFFT/2;k++) mag[k]=Math.hypot(re[k],im[k]);
+    peakDeviation(mag,binHz,tacc);
+  }
+  const tuningSemis=Math.atan2(tacc.s,tacc.c)/(2*Math.PI), refHz=440*Math.pow(2,tuningSemis/12);
   for(let f=0;f<nFrames;f++){
     const off=f*HOP; let e=0;
     for(let i=0;i<NFFT;i++){ const s=data[off+i]||0; re[i]=s*win[i]; im[i]=0; e+=s*s; }
     energy[f]=e/NFFT;
     fft(re,im);
     for(let k=0;k<NFFT/2;k++) mag[k]=Math.hypot(re[k],im[k]);
-    spectrumToChroma(mag,binHz,c12,b12);
+    spectrumToChroma(mag,binHz,c12,b12,refHz);
     chroma.set(c12,f*12); bass.set(b12,f*12);
     if(f%40===0){ onProgress&&onProgress(0.75*f/nFrames); await new Promise(r=>setTimeout(r,0)); }
   }
@@ -540,13 +661,26 @@ async function extractFeatures(data, onProgress){
   for(let f=0;f<nOn;f++){ const a=Math.max(0,f-W), b=Math.min(nOn,f+W+1); onset[f]=Math.max(0,onRaw[f]-(pre[b]-pre[a])/(b-a)); acc+=onset[f]*onset[f]; cnt++; }
   const sd=Math.sqrt(acc/cnt)||1; for(let f=0;f<nOn;f++) onset[f]/=sd;
 
-  return {nFrames, chroma:sm, bass:sb, chromaRaw:chroma, bassRaw:bass, silent, hopSec:HOP/SR, frameSec:NFFT/SR,
+  return {refHz, nFrames, chroma:sm, bass:sb, chromaRaw:chroma, bassRaw:bass, silent, hopSec:HOP/SR, frameSec:NFFT/SR,
           onset, onsetFps:SR/H2, onsetOff:N2/(2*SR), duration:data.length/SR};
+}
+
+/* Key context: chords that belong to the song's key get a small head start */
+let keyCtx=null;
+function keyBonus(states,k){
+  const out=new Float64Array(states.length); if(!k) return out;
+  const major=k.minor?(k.r+3)%12:k.r;
+  // diatonic triads (I ii iii IV V vi vii°) and common sevenths, relative to the major key
+  const ok={}; const add=(deg,qid)=>{ ok[((major+deg)%12)+':'+qid]=1; };
+  [[0,''],[2,'m'],[4,'m'],[5,''],[7,''],[9,'m'],[11,'dim'],[0,'maj7'],[5,'maj7'],[2,'m7'],[4,'m7'],[9,'m7'],[7,'7'],[7,'sus4'],[0,'sus4'],[2,'sus4'],[9,'sus4']].forEach(x=>add(...x));
+  if(k.minor){ add(4,''); add(4,'7'); } // V and V7 of the relative minor (harmonic minor)
+  states.forEach((st,i)=>{ out[i]=ok[st.root+':'+QUALITIES[st.q].id]?0.035:0; });
+  return out;
 }
 
 /* Viterbi decoding with a switch penalty */
 function decodeChords(feat, simple, sensitivity){
-  const states=buildTemplates(simple?[0,1]:[0,1,2,3,4,5,6]);
+  const states=buildTemplates(simple?[0,1]:[0,1,2,3,4,5,6]), kb=keyBonus(states,keyCtx);
   const S=states.length+1, N=S-1, T=feat.nFrames;
   const penalty=0.4+ (1-sensitivity)*2.6;
   const back=new Int16Array(T*S);
@@ -560,7 +694,7 @@ function decodeChords(feat, simple, sensitivity){
       const st=states[s]; let d=0;
       for(let i=0;i<12;i++) d+=cz[i]*st.v[i];
       const bb=bmax>0?bz[st.root]/bmax:0;
-      sc[s]=d+0.12*bb-st.cost;
+      sc[s]=d+0.12*bb-st.cost+kb[s];
     }
     sc[N]=feat.silent[t]?1.5:-0.4;
     let pm=-Infinity, pa=0;
@@ -694,7 +828,7 @@ function sigFor(beats,triple){
   return ({2:'2/4',3:'3/4',4:'4/4',5:'5/4',6:'6/8',7:'7/4'})[beats]||'4/4';
 }
 function decodeBeats(bf,simple,sensitivity,meter,phase){
-  const states=buildTemplates(simple?[0,1]:[0,1,2,3,4,5,6]);
+  const states=buildTemplates(simple?[0,1]:[0,1,2,3,4,5,6]), kb=keyBonus(states,keyCtx);
   const S=states.length+1, N=S-1, T=bf.B, base=0.25+(1-sensitivity)*1.5;
   const back=new Int16Array(T*S); let prev=new Float64Array(S), cur=new Float64Array(S);
   const sc=new Float64Array(S), cz=new Float64Array(12);
@@ -703,7 +837,7 @@ function decodeBeats(bf,simple,sensitivity,meter,phase){
     let bmax=0; for(let i=0;i<12;i++) if(bf.bass[t*12+i]>bmax) bmax=bf.bass[t*12+i];
     zNorm(cz);
     for(let s=0;s<N;s++){ const st=states[s]; let d=0; for(let i=0;i<12;i++) d+=cz[i]*st.v[i];
-      sc[s]=d+0.12*(bmax>0?bf.bass[t*12+st.root]/bmax:0)-st.cost*1.6; }
+      sc[s]=d+0.12*(bmax>0?bf.bass[t*12+st.root]/bmax:0)-st.cost*1.6+kb[s]; }
     sc[N]=bf.silent[t]?1.5:-0.4;
     const pos=((t-phase)%meter+meter)%meter;
     const half=meter%2===0?meter/2:(meter===5?3:meter===7?4:-1);
@@ -878,6 +1012,7 @@ function setStatus(msg,p){
   if(p!=null) $('prog').firstElementChild.style.width=(p*100).toFixed(1)+'%';
 }
 async function loadFile(file){
+  if(typeof proBlocked==='function'&&proBlocked()){ openPro(); return; }
   $('err').classList.add('hidden');
   try{
     setStatus('Reading file…',0);
@@ -887,7 +1022,7 @@ async function loadFile(file){
     setStatus('Listening for chords and beats…',0.05);
     feat=await extractFeatures(data,p=>setStatus('Listening for chords and beats… '+Math.round(p*100)+'%',0.05+p*0.9));
     setStatus('Finding the tempo and time signature…',0.97); await new Promise(r=>setTimeout(r,0));
-    key=estimateKey(feat);
+    key=estimateKey(feat); keyCtx=key;
     useFlats=prefersFlats(key.r,key.minor);
     tempoMul=1; barShift=0; $('sigSel').value='auto';
     rhythm=analyseRhythm(feat,tempoMul);
@@ -1019,7 +1154,8 @@ function tick(force){
   if(loopMode===3 && loopB<unitCount() && t>=unitEnd(loopB)){ audio.currentTime=unitStart(loopA); }
   if(!seeking) $('seek').value=dur?Math.round(t/dur*1000):0;
   $('tCur').textContent=fmt(t); $('tDur').textContent=fmt(dur);
-  const i=findSeg(t);
+  const tc=t+(audio.paused?0:0.1); // show the chord a moment early: speakers/Bluetooth play back with a delay
+  const i=findSeg(tc);
   const simple=$('simple').checked;
   if(i!==curIdx||force){
     document.querySelectorAll('#timeline .chip.on,#lane .s.on').forEach(x=>x.classList.remove('on'));
@@ -1035,7 +1171,7 @@ function tick(force){
     curIdx=i;
   }
   if(sheet==='bars'){
-    const b=findBeat(t);
+    const b=findBeat(tc);
     if(b!==curBeat||force){
       document.querySelectorAll('#timeline .sl.on,#timeline .barc.cur').forEach(x=>x.classList.remove('on','cur'));
       const sl=b>=0&&document.querySelector(`#timeline .sl[data-beat="${b}"]`);
@@ -1046,7 +1182,7 @@ function tick(force){
     }
   }
   const n=segs[i+1], cur=segs[i], total=segs[segs.length-1].end||1;
-  if(n&&sheet==='bars'){ const nb=n.beat-Math.max(0,findBeat(t)); $('nextIn').textContent=nb>0?`${nb} beat${nb>1?'s':''}`:''; }
+  if(n&&sheet==='bars'){ const nb=n.beat-Math.max(0,findBeat(tc)); $('nextIn').textContent=nb>0?`${nb} beat${nb>1?'s':''}`:''; }
   else $('nextIn').textContent=n?`${Math.max(0,n.start-t).toFixed(1)}s`:'';
   $('nextBar').style.width=n?Math.min(100,Math.max(0,(t-cur.start)/(cur.end-cur.start)*100))+'%':'0';
   const hd=$('laneHead'); if(hd) hd.style.left=Math.min(100,t/total*100)+'%';
@@ -1189,6 +1325,119 @@ $('installBtn').onclick=async()=>{ if(!deferredInstall) return; deferredInstall.
 window.addEventListener('appinstalled',()=>$('installBtn').classList.add('hidden'));
 if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 
+
+/* ================= ChordSathi Pro: free trial + signed access codes =================
+   Codes are signed with the owner's private key (kept out of this app, see admin.html);
+   the app only holds the public key, so it can check a code but never make one. */
+const PRO={
+  upi:'',            // owner's UPI ID, e.g. name@okaxis
+  payee:'Tanmay Halder',
+  whatsapp:'',       // owner's WhatsApp number with country code, digits only, e.g. 9198xxxxxxxx
+  price:{m:99,y:1000}, trialDays:7,
+  key:{"kty": "EC", "crv": "P-256", "x": "8TtBVsI_XTYAADfjMBIBL-p9eKlGJeX5zDJrHL5ktmA", "y": "DDH045phQb6Ndeh2uQhxBS4doxvr0KyE1GLN2yp4PY4"}
+};
+const DAY=86400000;
+const lsGet=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const lsSet=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
+const b64uDec=s=>{ s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); };
+async function verifyCode(code){
+  try{
+    const m=String(code||'').replace(/\s+/g,'').match(/^CS-([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/); if(!m) return null;
+    const data=b64uDec(m[1]), sig=b64uDec(m[2]);
+    const key=await crypto.subtle.importKey('jwk',{...PRO.key,ext:true},{name:'ECDSA',namedCurve:'P-256'},false,['verify']);
+    if(!await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,sig,data)) return null;
+    const p=JSON.parse(new TextDecoder().decode(data));
+    return (typeof p.e==='number'&&typeof p.n==='string')?p:null;
+  }catch(e){ return null; }
+}
+const dayStr=d=>new Date(d*DAY).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+let pro={status:'trial',daysLeft:PRO.trialDays,lic:null}, proPlan='y';
+async function computePro(){
+  const now=Date.now(), today=Math.floor(now/DAY);
+  const code=lsGet('cs-license');
+  if(code){ const lic=await verifyCode(code);
+    if(lic) return lic.e>=today?{status:'pro',lic,daysLeft:lic.e-today+1}:{status:'expired',lic,daysLeft:0}; }
+  let start=+lsGet('cs-trial');
+  if(!start){ start=now; lsSet('cs-trial',String(now)); }
+  if(start>now+DAY) return {status:'locked',daysLeft:0};
+  const left=PRO.trialDays-Math.floor((now-start)/DAY);
+  return left>0?{status:'trial',daysLeft:left}:{status:'locked',daysLeft:0};
+}
+const proBlocked=()=>pro.status==='locked'||pro.status==='expired';
+function applyPro(){
+  const b=$('proBtn');
+  b.classList.toggle('pro',pro.status==='pro');
+  setBtn(b,'crown',pro.status==='pro'?'Pro':pro.status==='trial'?`Trial · ${pro.daysLeft}d`:'Subscribe');
+  const bar=$('trialBar');
+  if(pro.status==='trial'){ $('trialText').textContent=`Free trial · ${pro.daysLeft} day${pro.daysLeft>1?'s':''} left`; setBtn($('trialBuy'),null,'Subscribe'); bar.classList.remove('hidden'); }
+  else if(pro.status==='pro'&&pro.daysLeft<=5){ $('trialText').textContent=`Your plan ends in ${pro.daysLeft} day${pro.daysLeft>1?'s':''}`; setBtn($('trialBuy'),null,'Renew'); bar.classList.remove('hidden'); }
+  else bar.classList.add('hidden');
+  $('licTo').textContent=pro.status==='pro'?` · Licensed to ${pro.lic.n}`:'';
+  if(proBlocked()){ document.body.classList.add('locked'); try{ audio.pause(); if(live) stopLive(); }catch(e){} openPro(); }
+  else { document.body.classList.remove('locked'); }
+}
+function openPro(){
+  const sub=$('proSub'), st=$('proStatus');
+  sub.textContent=pro.status==='locked'?`Your ${PRO.trialDays}-day free trial has ended. Subscribe to keep finding chords.`
+    :pro.status==='expired'?`Your plan ended on ${dayStr(pro.lic.e)}. Renew to keep finding chords.`
+    :pro.status==='trial'?`You're on the free trial · ${pro.daysLeft} day${pro.daysLeft>1?'s':''} left.`
+    :'Thanks for supporting ChordSathi.';
+  if(pro.status==='pro'){ st.textContent=`Licensed to ${pro.lic.n} · ${pro.lic.p==='y'?'Yearly':pro.lic.p==='m'?'Monthly':'Pro'} · valid until ${dayStr(pro.lic.e)}`; st.classList.remove('hidden'); }
+  else st.classList.add('hidden');
+  $('proClose').classList.toggle('hidden',proBlocked());
+  const hasPay=!!PRO.upi;
+  $('paySteps').classList.toggle('hidden',!hasPay);
+  $('noPay').classList.toggle('hidden',hasPay);
+  $('codeMsg').textContent=''; $('codeMsg').className='small';
+  paintPlan();
+  $('proModal').classList.remove('hidden');
+}
+function closePro(){ if(proBlocked()) return; $('proModal').classList.add('hidden'); }
+let qrLib=null;
+function loadQR(){
+  if(qrLib) return qrLib;
+  qrLib=new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src='vendor/qrcode.js'; /* qrcode-generator 1.4.4 (MIT, Kazuhiko Arase) */ sc.onload=res; sc.onerror=rej; document.head.appendChild(sc); });
+  return qrLib;
+}
+function paintPlan(){
+  document.querySelectorAll('.plan').forEach(p=>{ const on=p.dataset.plan===proPlan; p.classList.toggle('on',on); p.setAttribute('aria-checked',on); });
+  const amt=PRO.price[proPlan], name=proPlan==='y'?'Yearly':'Monthly';
+  if(!PRO.upi) return;
+  const upi=`upi://pay?pa=${encodeURIComponent(PRO.upi)}&pn=${encodeURIComponent(PRO.payee)}&am=${amt}.00&cu=INR&tn=${encodeURIComponent('ChordSathi Pro '+name)}`;
+  $('upiBtn').href=upi; setBtn($('upiBtn'),null,`Pay ₹${amt} with UPI`); $('upiId').textContent=PRO.upi;
+  const who=$('buyerName').value.trim()||'—';
+  const msg=`Hi! I paid ₹${amt} for ChordSathi Pro (${name}). My name: ${who}. Payment screenshot attached.`;
+  $('waBtn').href=PRO.whatsapp?`https://wa.me/${PRO.whatsapp}?text=${encodeURIComponent(msg)}`:'#';
+  $('waBtn').classList.toggle('hidden',!PRO.whatsapp);
+  loadQR().then(()=>{ const q=qrcode(0,'M'); q.addData(upi); q.make(); $('qrBox').innerHTML=q.createSvgTag({cellSize:4,margin:0,scalable:true}); }).catch(()=>{});
+}
+async function activate(code){
+  const msg=$('codeMsg'); msg.className='small'; msg.textContent='Checking…';
+  const lic=await verifyCode(code);
+  const today=Math.floor(Date.now()/DAY);
+  if(!lic){ msg.className='small bad'; msg.textContent='This code isn’t valid. Check that you copied all of it.'; return false; }
+  if(lic.e<today){ msg.className='small bad'; msg.textContent=`This code expired on ${dayStr(lic.e)}.`; return false; }
+  lsSet('cs-license',String(code).replace(/\s+/g,''));
+  pro=await computePro(); applyPro();
+  msg.className='small ok'; msg.textContent=`Welcome to Pro, ${lic.n}! Valid until ${dayStr(lic.e)}.`;
+  setTimeout(()=>$('proModal').classList.add('hidden'),1400);
+  return true;
+}
+$('proBtn').onclick=openPro; $('trialBuy').onclick=openPro; $('proClose').onclick=closePro;
+$('proModal').addEventListener('click',e=>{ if(e.target.id==='proModal') closePro(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePro(); });
+document.querySelectorAll('.plan').forEach(p=>p.onclick=()=>{ proPlan=p.dataset.plan; paintPlan(); });
+$('buyerName').addEventListener('input',()=>{ if(PRO.upi) paintPlan(); });
+$('upiCopy').onclick=()=>{ (navigator.clipboard?navigator.clipboard.writeText(PRO.upi):Promise.reject()).then(()=>setBtn($('upiCopy'),null,'Copied'),()=>{}); };
+$('codeBtn').onclick=()=>activate($('codeIn').value);
+$('codeIn').addEventListener('keydown',e=>{ if(e.key==='Enter') activate($('codeIn').value); });
+(async()=>{
+  const params=new URLSearchParams(location.search), c=params.get('code');
+  pro=await computePro();
+  if(c){ history.replaceState(null,'',location.pathname); $('codeIn').value=c; openPro(); if(await activate(c)) return; }
+  applyPro();
+})();
+
 /* ================= Live mode ================= */
 let live=null;
 const bars=$('chromaBars');
@@ -1206,6 +1455,7 @@ $('liveCopy').onclick=()=>{
   (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>done('✓ Copied'),()=>done('Copy blocked'));
 };
 async function startLive(kind){
+  if(proBlocked()){ openPro(); return; }
   $('liveErr').classList.add('hidden');
   try{
     let stream;
