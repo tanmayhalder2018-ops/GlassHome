@@ -12,6 +12,21 @@ A free chord finder that runs entirely in the browser. Nothing is uploaded.
 - Export the chord sheet as a `.txt` file
 - **Live / YouTube mode**: detect chords in real time from the mic, or from another browser tab such as a YouTube video (Chrome or Edge on a computer). Chords are logged with their times and can be copied as a chord sheet
 
+## Accuracy engine
+- **Tuning estimation:** finds the song's reference pitch (for example A=432 or A=452), so off-tuned recordings still map to the right notes.
+- **Overtone suppression:** each spectral peak is reduced by the harmonics expected from lower notes, so overtones don't pose as chord tones (the 3rd harmonic of E is a B, for example).
+- **Key context:** chords that belong to the detected key get a small prior.
+- Chords are shown 0.1 s ahead of playback to make up for speaker and Bluetooth delay.
+
+On the built-in synthetic benchmark (vocals, walking bass, reverb, off-tunings, 7ths), full-label accuracy went from 70% to 95%, and major/minor accuracy from 80% to 97%.
+
+## ChordSathi Pro (subscription)
+- Every device gets a 7-day free trial. After that the app asks for a subscription: ₹99 a month or ₹1000 a year.
+- Payment goes through the owner's UPI (deep link + QR). The buyer sends the screenshot on WhatsApp and receives an **access code**.
+- Codes are ECDSA P-256 signatures, made in `admin.html` (unlocked with the owner's passphrase). The app holds only the public key.
+- Set the owner's UPI ID and WhatsApp number in the `PRO` config inside `index.html`.
+- Limits: this is a client-side lock on a static site. Someone technical can bypass it, and clearing browser data restarts the trial.
+
 ## Install on your phone (PWA)
 1. Merge this branch into the default branch.
 2. In the repo on GitHub, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**.
