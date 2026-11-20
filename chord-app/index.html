@@ -239,6 +239,7 @@ body.has-mini{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
 /* Pro */
 .trialbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 14px;border-radius:var(--r-md);background:var(--accent-soft);border:1px solid var(--line);font-size:13.5px;font-weight:600}
 #proBtn.pro{color:var(--accent);border-color:var(--accent)}
+@media (max-width:440px){ #installBtn span{display:none} #installBtn{width:34px;padding:0} }
 body.locked .wrap{filter:blur(4px);pointer-events:none;user-select:none}
 .modal{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-start;justify-content:center;overflow:auto;
   background:rgba(10,10,12,.55);padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
@@ -264,6 +265,7 @@ body.locked .wrap{filter:blur(4px);pointer-events:none;user-select:none}
 .steps li{display:flex;flex-direction:column;gap:8px}
 .steps li::marker{font-weight:700;color:var(--accent)}
 .btn.wide{width:100%}
+#instSteps li{display:list-item;line-height:1.55}
 .qrrow{display:flex;gap:12px;align-items:center}
 .qr{flex:none;background:#fff;border-radius:10px;padding:6px;line-height:0}
 .qr:empty{display:none}
@@ -339,7 +341,7 @@ footer .ver{font-family:var(--f-mono);padding:1px 6px;border-radius:6px;backgrou
       </div>
     </div>
     <div class="spacer"></div>
-    <button class="btn sm hidden" id="installBtn"><svg class="i"><use href="#i-download"/></svg><span>Install</span></button>
+    <button class="btn sm" id="installBtn" aria-label="Install app"><svg class="i"><use href="#i-download"/></svg><span>Install</span></button>
     <button class="btn sm" id="proBtn"><svg class="i"><use href="#i-crown"/></svg><span>Pro</span></button>
     <button class="btn icon" id="themeBtn" aria-label="Theme: system" title="Theme: system"><svg class="i"><use href="#i-auto"/></svg></button>
   </header>
@@ -470,7 +472,7 @@ footer .ver{font-family:var(--f-mono);padding:1px 6px;border-radius:6px;backgrou
 
   <footer>
     <p>Chords are estimated by signal analysis and can be wrong. Your audio stays on your device.</p>
-    <p class="credit">ChordSathi <span class="ver">v1.8.0</span> · App design by <b>Tanmay Halder</b><span id="licTo"></span></p>
+    <p class="credit">ChordSathi <span class="ver">v1.8.1</span> · App design by <b>Tanmay Halder</b><span id="licTo"></span></p>
   </footer>
 </div>
 
@@ -478,6 +480,19 @@ footer .ver{font-family:var(--f-mono);padding:1px 6px;border-radius:6px;backgrou
   <button class="btn primary play" id="miniPlay" aria-label="Play"><svg class="i fill"><use href="#i-play"/></svg></button>
   <div class="mb-chord"><b id="mbNow">–</b><span id="mbNext"></span></div>
   <span class="mb-time" id="mbTime">0:00</span>
+</div>
+
+<div class="modal hidden" id="installModal" role="dialog" aria-modal="true" aria-labelledby="instTitle">
+  <div class="pcard">
+    <button class="btn icon ghost pclose" id="instClose" aria-label="Close">✕</button>
+    <div class="phead">
+      <span class="pcrown"><svg class="i"><use href="#i-download"/></svg></span>
+      <h2 id="instTitle">Install ChordSathi</h2>
+      <p class="muted">Add it to your home screen. It opens full screen and works offline.</p>
+    </div>
+    <ol class="steps" id="instSteps"></ol>
+    <p class="muted small" id="instNote"></p>
+  </div>
 </div>
 
 <div class="modal hidden" id="proModal" role="dialog" aria-modal="true" aria-labelledby="proTitle">
@@ -1416,9 +1431,30 @@ $('instSeg').onclick=e=>{ const b=e.target.closest('button'); if(!b) return;
   instrument=b.dataset.inst; try{ localStorage.setItem('cs-instrument',instrument); }catch(_){}
   paintInst(); tick(true); if(live) live.shown=null; };
 let deferredInstall=null;
-window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredInstall=e; $('installBtn').classList.remove('hidden'); });
-$('installBtn').onclick=async()=>{ if(!deferredInstall) return; deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; $('installBtn').classList.add('hidden'); };
-window.addEventListener('appinstalled',()=>$('installBtn').classList.add('hidden'));
+const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+if(isStandalone()) $('installBtn').classList.add('hidden');
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredInstall=e; });
+window.addEventListener('appinstalled',()=>{ deferredInstall=null; $('installBtn').classList.add('hidden'); $('installModal').classList.add('hidden'); });
+function installGuide(){
+  const ua=navigator.userAgent, iOS=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
+  const android=/Android/.test(ua), safari=/Safari/.test(ua)&&!/Chrome|CriOS|Chromium|Edg|FxiOS|Firefox/.test(ua);
+  const firefox=/Firefox|FxiOS/.test(ua), edge=/Edg/.test(ua);
+  const share='<b>Share</b> (the square with an arrow ⬆)';
+  if(iOS&&!safari) return {steps:['Open this page in <b>Safari</b>. On iPhone and iPad, apps can be installed only from Safari.','Tap '+share+'.','Tap <b>Add to Home Screen</b>, then <b>Add</b>.'],note:''};
+  if(iOS) return {steps:['Tap '+share+' at the bottom of the screen (top right on iPad).','Scroll down and tap <b>Add to Home Screen</b>.','Tap <b>Add</b>. ChordSathi appears on your home screen.'],note:''};
+  if(android&&firefox) return {steps:['Tap the <b>⋮</b> menu.','Tap <b>Install</b> or <b>Add to Home screen</b>.'],note:''};
+  if(android) return {steps:['Tap the <b>⋮</b> menu at the top right of Chrome.','Tap <b>Install app</b> or <b>Add to Home screen</b>.','Tap <b>Install</b>.'],note:'If you don’t see it, reload the page once and try again.'};
+  if(safari) return {steps:['In the menu bar, click <b>File</b> → <b>Add to Dock…</b>','Click <b>Add</b>. ChordSathi opens from the Dock like any app.'],note:'Needs macOS Sonoma or newer. On older Macs, use Chrome or Edge to install.'};
+  if(firefox) return {steps:['Firefox on computers can’t install web apps.','Open this page in <b>Chrome</b> or <b>Edge</b> and click Install there.'],note:''};
+  return {steps:['Click the install icon <b>⊕</b> at the right end of the address bar.','Or open the <b>'+(edge?'…':'⋮')+'</b> menu → <b>'+(edge?'Apps → Install this site as an app':'Cast, save and share → Install page as app')+'</b>.','Click <b>Install</b>.'],note:'Already installed? Open it from your apps list or desktop.'};
+}
+$('installBtn').onclick=async()=>{
+  if(deferredInstall){ deferredInstall.prompt(); const r=await deferredInstall.userChoice; deferredInstall=null; if(r.outcome==='accepted') return; }
+  const g=installGuide(); $('instSteps').innerHTML=g.steps.map(x=>`<li>${x}</li>`).join(''); $('instNote').textContent=g.note;
+  $('installModal').classList.remove('hidden');
+};
+$('instClose').onclick=()=>$('installModal').classList.add('hidden');
+$('installModal').addEventListener('click',e=>{ if(e.target.id==='installModal') $('installModal').classList.add('hidden'); });
 if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 
