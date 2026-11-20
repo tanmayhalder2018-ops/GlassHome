@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="bn">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>ChordSathi Codes</title>
+<title>ChordSathi কোড</title>
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <style>
 :root{--bg:#121214;--surface:#1a1a1e;--surface-2:#232329;--line:#2f2f36;--fg:#f3f0ea;--muted:#9b978f;--accent:#ffb547;--accent-ink:#1a1305;--good:#4ade80;--danger:#fda29b;color-scheme:dark;
@@ -29,42 +29,42 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 </head>
 <body>
 <div class="wrap">
-  <div><h1>ChordSathi · Access codes</h1><p class="muted small" style="margin:4px 0 0">For the app owner only. Codes are signed on this device; nothing is sent anywhere.</p></div>
+  <div><h1>ChordSathi · আনলক কোড বানাও</h1><p class="muted small" style="margin:4px 0 0">এই পেজ শুধু তোমার জন্য। কোড এই ফোন/কম্পিউটারেই তৈরি হয়, কোথাও পাঠানো হয় না।</p></div>
 
   <section class="card" id="lockCard">
-    <h2>Unlock</h2>
+    <h2>ধাপ ১ · পাসওয়ার্ড দাও</h2>
     <form id="unlockForm" class="row">
-      <input id="pass" type="password" placeholder="Owner passphrase" autocomplete="current-password" style="flex:1;min-width:200px">
-      <button class="btn primary" type="submit">Unlock</button>
+      <input id="pass" type="password" placeholder="তোমার পাসওয়ার্ড" autocomplete="current-password" style="flex:1;min-width:200px">
+      <button class="btn primary" type="submit">খোলো</button>
     </form>
-    <label class="row small" style="flex-direction:row;margin-top:10px;font-weight:500"><input type="checkbox" id="remember" style="width:auto"> Remember on this device</label>
+    <label class="row small" style="flex-direction:row;margin-top:10px;font-weight:500"><input type="checkbox" id="remember" style="width:auto" checked> এই ফোন/কম্পিউটারে মনে রাখো (পরের বার আর পাসওয়ার্ড লাগবে না)</label>
     <p id="unlockMsg" class="small"></p>
   </section>
 
   <section class="card hidden" id="genCard">
-    <h2>New access code</h2>
+    <h2>ধাপ ২ · নতুন আনলক কোড বানাও</h2>
     <form id="genForm" style="display:flex;flex-direction:column;gap:12px">
       <div class="grid">
-        <label>Buyer name<input id="buyer" required placeholder="e.g. Rahul Das" maxlength="40"></label>
-        <label>WhatsApp number (optional)<input id="phone" placeholder="91XXXXXXXXXX" inputmode="numeric"></label>
-        <label>Plan<select id="plan"><option value="m">Monthly · ₹99 · 31 days</option><option value="y" selected>Yearly · ₹1000 · 366 days</option><option value="c">Custom days</option></select></label>
-        <label id="daysWrap" class="hidden">Days<input id="days" type="number" min="1" max="3660" value="7"></label>
-        <label>Starts on<input id="start" type="date"></label>
+        <label>যে টাকা দিয়েছে তার নাম<input id="buyer" required placeholder="যেমন: Rahul Das" maxlength="40"></label>
+        <label>তার WhatsApp নম্বর (না দিলেও চলবে)<input id="phone" placeholder="যেমন: 919800000000" inputmode="numeric"></label>
+        <label>কত টাকা দিয়েছে<select id="plan"><option value="m">₹99 · ১ মাস</option><option value="y" selected>₹1000 · ১ বছর</option><option value="c">নিজে দিন ঠিক করবো</option></select></label>
+        <label id="daysWrap" class="hidden">কত দিন<input id="days" type="number" min="1" max="3660" value="7"></label>
+        <label>কবে থেকে চালু (আজকের তারিখ থাকুক)<input id="start" type="date"></label>
       </div>
-      <div class="row"><button class="btn primary" type="submit">Create code</button><button class="btn" type="button" id="lockBtn">Lock</button></div>
+      <div class="row"><button class="btn primary" type="submit">কোড বানাও</button><button class="btn" type="button" id="lockBtn">বন্ধ করো</button></div>
     </form>
     <div id="out" class="hidden" style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
       <p class="small ok" id="outInfo" style="margin:0"></p>
-      <label>Access code<textarea id="outCode" readonly></textarea></label>
-      <label>Message to send (with one-tap activation link)<textarea id="outMsg" readonly style="min-height:110px"></textarea></label>
-      <div class="row"><button class="btn" id="copyCode">Copy code</button><button class="btn" id="copyMsg">Copy message</button><a class="btn primary hidden" id="sendWa" target="_blank" rel="noopener">Send on WhatsApp</a></div>
+      <label>আনলক কোড<textarea id="outCode" readonly></textarea></label>
+      <label>ধাপ ৩ · এই মেসেজটা ক্রেতাকে পাঠাও (লিঙ্কে চাপলেই অ্যাপ খুলে যাবে)<textarea id="outMsg" readonly style="min-height:110px"></textarea></label>
+      <div class="row"><a class="btn primary hidden" id="sendWa" target="_blank" rel="noopener">WhatsApp-এ পাঠাও</a><button class="btn" id="copyMsg">মেসেজ কপি করো</button><button class="btn" id="copyCode">শুধু কোড কপি করো</button></div>
     </div>
   </section>
 
   <section class="card hidden" id="histCard">
-    <h2>Codes created on this device</h2>
-    <div class="tw"><table><thead><tr><th>Created</th><th>Buyer</th><th>Plan</th><th>Valid until</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
-    <p class="muted small" id="histEmpty">No codes yet.</p>
+    <h2>আগে যাদের কোড দিয়েছো</h2>
+    <div class="tw"><table><thead><tr><th>কবে দিয়েছো</th><th>নাম</th><th>প্ল্যান</th><th>কত দিন পর্যন্ত</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
+    <p class="muted small" id="histEmpty">এখনও কোনো কোড বানাওনি।</p>
   </section>
 </div>
 <script>
@@ -83,14 +83,14 @@ async function unlock(pass){
   return {jwk,key:await crypto.subtle.importKey('jwk',jwk,{name:'ECDSA',namedCurve:'P-256'},false,['sign'])};
 }
 function showGen(){ $('lockCard').classList.add('hidden'); $('genCard').classList.remove('hidden'); $('histCard').classList.remove('hidden'); renderHist(); }
-$('unlockForm').onsubmit=async e=>{ e.preventDefault(); $('unlockMsg').textContent='Unlocking…'; $('unlockMsg').className='small';
+$('unlockForm').onsubmit=async e=>{ e.preventDefault(); $('unlockMsg').textContent='খুলছে… একটু অপেক্ষা করো'; $('unlockMsg').className='small';
   try{ const r=await unlock($('pass').value.trim()); signKey=r.key; if($('remember').checked) ls.set('cs-admin-key',JSON.stringify(r.jwk)); $('pass').value=''; showGen(); }
-  catch(err){ $('unlockMsg').textContent='Wrong passphrase. Check spelling and dashes.'; $('unlockMsg').className='small bad'; } };
+  catch(err){ $('unlockMsg').textContent='পাসওয়ার্ড ভুল। বানান আর মাঝের ড্যাশ (-) ঠিক আছে কিনা দেখো।'; $('unlockMsg').className='small bad'; } };
 $('lockBtn').onclick=()=>{ signKey=null; ls.del('cs-admin-key'); location.reload(); };
 (async()=>{ const saved=ls.get('cs-admin-key'); if(saved){ try{ signKey=await crypto.subtle.importKey('jwk',JSON.parse(saved),{name:'ECDSA',namedCurve:'P-256'},false,['sign']); showGen(); }catch(e){ ls.del('cs-admin-key'); } } })();
 const today=new Date(); $('start').value=today.toISOString().slice(0,10);
 $('plan').onchange=()=>$('daysWrap').classList.toggle('hidden',$('plan').value!=='c');
-const fmtDay=d=>new Date(d*DAY).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+const fmtDay=d=>new Date(d*DAY).toLocaleDateString('bn-IN',{day:'numeric',month:'long',year:'numeric'});
 $('genForm').onsubmit=async e=>{
   e.preventDefault(); if(!signKey) return;
   const n=$('buyer').value.trim().slice(0,40), p=$('plan').value;
@@ -99,24 +99,24 @@ $('genForm').onsubmit=async e=>{
   const data=new TextEncoder().encode(JSON.stringify({n,p,i,e:ex}));
   const sig=new Uint8Array(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},signKey,data));
   const code='CS-'+b64u(data)+'.'+b64u(sig), link=APP_URL+'?code='+encodeURIComponent(code);
-  const planName=p==='y'?'Yearly':p==='m'?'Monthly':`${len}-day`;
-  const msg=`Hi ${n}! Thanks for subscribing to ChordSathi Pro (${planName}). 🎸\n\nTap this link to activate:\n${link}\n\nOr open the app → Pro → paste this code:\n${code}\n\nValid until ${fmtDay(ex)}.`;
-  $('outInfo').textContent=`Code for ${n} · ${planName} · valid until ${fmtDay(ex)}`;
+  const planName=p==='y'?'১ বছর':p==='m'?'১ মাস':`${len} দিন`;
+  const msg=`নমস্কার ${n}! ChordSathi Pro (${planName}) নেওয়ার জন্য ধন্যবাদ। 🎸\n\nএই লিঙ্কে চাপলেই অ্যাপ চালু হয়ে যাবে:\n${link}\n\nঅথবা অ্যাপ খুলে উপরের Pro বোতামে চেপে এই কোডটা বসাও:\n${code}\n\n${fmtDay(ex)} পর্যন্ত চলবে।`;
+  $('outInfo').textContent=`✅ ${n}-এর কোড তৈরি · ${planName} · ${fmtDay(ex)} পর্যন্ত চলবে`;
   $('outCode').value=code; $('outMsg').value=msg; $('out').classList.remove('hidden');
   const ph=$('phone').value.replace(/\D/g,'');
   $('sendWa').classList.toggle('hidden',!ph); if(ph) $('sendWa').href=`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`;
   const h=JSON.parse(ls.get('cs-admin-hist')||'[]'); h.unshift({c:Date.now(),n,p:planName,e:ex,code}); ls.set('cs-admin-hist',JSON.stringify(h.slice(0,500))); renderHist();
 };
-const copy=(id,btn)=>{ const v=$(id).value; (navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>{btn.textContent='Copied';setTimeout(()=>btn.textContent=btn.dataset.t,1500);},()=>{ $(id).select(); }); };
-$('copyCode').dataset.t='Copy code'; $('copyMsg').dataset.t='Copy message';
+const copy=(id,btn)=>{ const v=$(id).value; (navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>{btn.textContent='কপি হয়েছে ✓';setTimeout(()=>btn.textContent=btn.dataset.t,1500);},()=>{ $(id).select(); }); };
+$('copyCode').dataset.t='শুধু কোড কপি করো'; $('copyMsg').dataset.t='মেসেজ কপি করো';
 $('copyCode').onclick=()=>copy('outCode',$('copyCode')); $('copyMsg').onclick=()=>copy('outMsg',$('copyMsg'));
 function renderHist(){
   const h=JSON.parse(ls.get('cs-admin-hist')||'[]'), tb=$('hist'); tb.innerHTML='';
   $('histEmpty').classList.toggle('hidden',h.length>0);
   h.forEach(r=>{ const tr=document.createElement('tr');
     [new Date(r.c).toLocaleDateString(),r.n,r.p,fmtDay(r.e)].forEach((v,k)=>{ const td=document.createElement('td'); td.textContent=v; if(k!==1) td.className='num'; tr.appendChild(td); });
-    const td=document.createElement('td'), b=document.createElement('button'); b.className='btn'; b.style.height='30px'; b.textContent='Copy';
-    b.onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(r.code).then(()=>b.textContent='Copied'); td.appendChild(b); tr.appendChild(td); tb.appendChild(tr); });
+    const td=document.createElement('td'), b=document.createElement('button'); b.className='btn'; b.style.height='30px'; b.textContent='কোড কপি';
+    b.onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(r.code).then(()=>b.textContent='কপি হয়েছে ✓'); td.appendChild(b); tr.appendChild(td); tb.appendChild(tr); });
 }
 </script>
 </body>
