@@ -472,7 +472,7 @@ footer .ver{font-family:var(--f-mono);padding:1px 6px;border-radius:6px;backgrou
 
   <footer>
     <p>Chords are estimated by signal analysis and can be wrong. Your audio stays on your device.</p>
-    <p class="credit">ChordSathi <span class="ver">v1.8.1</span> · App design by <b>Tanmay Halder</b><span id="licTo"></span></p>
+    <p class="credit">ChordSathi <span class="ver">v1.8.2</span> · App design by <b>Tanmay Halder</b><span id="licTo"></span></p>
   </footer>
 </div>
 
@@ -1440,10 +1440,10 @@ function installGuide(){
   const android=/Android/.test(ua), safari=/Safari/.test(ua)&&!/Chrome|CriOS|Chromium|Edg|FxiOS|Firefox/.test(ua);
   const firefox=/Firefox|FxiOS/.test(ua), edge=/Edg/.test(ua);
   const share='<b>Share</b> (the square with an arrow ⬆)';
-  if(iOS&&!safari) return {steps:['Open this page in <b>Safari</b>. On iPhone and iPad, apps can be installed only from Safari.','Tap '+share+'.','Tap <b>Add to Home Screen</b>, then <b>Add</b>.'],note:''};
+  if(iOS&&!safari) return {steps:['Copy this page’s link and open it in <b>Safari</b>. On iPhone and iPad, apps install from Safari.','Tap '+share+'.','Tap <b>Add to Home Screen</b>, then <b>Add</b>.'],note:''};
   if(iOS) return {steps:['Tap '+share+' at the bottom of the screen (top right on iPad).','Scroll down and tap <b>Add to Home Screen</b>.','Tap <b>Add</b>. ChordSathi appears on your home screen.'],note:''};
   if(android&&firefox) return {steps:['Tap the <b>⋮</b> menu.','Tap <b>Install</b> or <b>Add to Home screen</b>.'],note:''};
-  if(android) return {steps:['Tap the <b>⋮</b> menu at the top right of Chrome.','Tap <b>Install app</b> or <b>Add to Home screen</b>.','Tap <b>Install</b>.'],note:'If you don’t see it, reload the page once and try again.'};
+  if(android) return {steps:['Opened from WhatsApp or another app? Tap <b>⋮</b> → <b>Open in Chrome</b> first.','In Chrome, tap the <b>⋮</b> menu at the top right.','Tap <b>Add to Home screen</b> (or <b>Install app</b>), then <b>Install</b>.'],note:'No install option? ChordSathi may already be installed: look for it in your app list. Install isn’t available in incognito tabs.'};
   if(safari) return {steps:['In the menu bar, click <b>File</b> → <b>Add to Dock…</b>','Click <b>Add</b>. ChordSathi opens from the Dock like any app.'],note:'Needs macOS Sonoma or newer. On older Macs, use Chrome or Edge to install.'};
   if(firefox) return {steps:['Firefox on computers can’t install web apps.','Open this page in <b>Chrome</b> or <b>Edge</b> and click Install there.'],note:''};
   return {steps:['Click the install icon <b>⊕</b> at the right end of the address bar.','Or open the <b>'+(edge?'…':'⋮')+'</b> menu → <b>'+(edge?'Apps → Install this site as an app':'Cast, save and share → Install page as app')+'</b>.','Click <b>Install</b>.'],note:'Already installed? Open it from your apps list or desktop.'};
