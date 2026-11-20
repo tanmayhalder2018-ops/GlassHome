@@ -63,7 +63,7 @@ import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.ui.graphics.Shape
 import kotlin.math.roundToInt
 
-enum class MenuSource { Home, Dock, Library }
+enum class MenuSource { Home, Dock, Library, Hidden }
 
 class MenuState(val app: AppInfo, val bounds: Rect, val source: MenuSource)
 
@@ -166,6 +166,10 @@ fun SettingsSheet(
     onLabels: (Boolean) -> Unit,
     onRestoreHidden: () -> Unit,
     onDefaultHome: () -> Unit,
+    lockMode: String,
+    hasPin: Boolean,
+    onLockMode: (String) -> Unit,
+    onChangePin: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val thumbs = remember { Wallpapers.presets.map { Wallpapers.render(it, 180).asImageBitmap() } }
@@ -273,11 +277,39 @@ fun SettingsSheet(
                     Row(
                         Modifier.fillMaxWidth().clickable(onClick = onRestoreHidden).padding(horizontal = 16.dp, vertical = 14.dp),
                     ) {
-                        Text("Hidden apps", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                        Text("Removed from Home", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
                         Text("Restore $hiddenCount", color = Color(0xFF0A84FF), fontSize = 16.sp)
                     }
                 }
             }
+            Spacer(Modifier.height(14.dp))
+            SectionTitle("Hidden apps lock")
+            Group {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Unlock with", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                    Row(Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.1f)).padding(3.dp)) {
+                        listOf("Device lock" to "device", "Launcher PIN" to "pin").forEach { (n, v) ->
+                            val sel = lockMode == v
+                            Box(
+                                Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (sel) Color.White.copy(alpha = 0.28f) else Color.Transparent)
+                                    .clickable { onLockMode(v) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            ) { Text(n, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+                        }
+                    }
+                }
+                Box(Modifier.fillMaxWidth().height(0.6.dp).background(Divider))
+                Row(Modifier.fillMaxWidth().clickable(onClick = onChangePin).padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Text(if (hasPin) "Change launcher PIN" else "Set launcher PIN", color = Color(0xFF0A84FF), fontSize = 16.sp)
+                }
+            }
+            Text(
+                "Device lock uses your fingerprint, face or screen lock. Hide an app: long-press it → Hide & Lock. Open them from App Library → Hidden.",
+                color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, lineHeight = 16.sp,
+                modifier = Modifier.padding(top = 6.dp, start = 4.dp),
+            )
             Spacer(Modifier.height(14.dp))
             Group {
                 Row(Modifier.fillMaxWidth().clickable(onClick = onDefaultHome).padding(horizontal = 16.dp, vertical = 14.dp)) {

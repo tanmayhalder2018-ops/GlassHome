@@ -133,6 +133,42 @@ class LauncherPrefs(context: Context) {
         sp.edit().putFloat("icon_round", v.roundness).putBoolean("icon_smooth", v.smooth).apply()
     }
 
+    // ---- Locked hidden apps ----
+    private val _secret = MutableStateFlow(sp.getStringSet("secret_apps", emptySet())!!.toSet())
+    /** Apps hidden behind a lock: not on Home, Dock, App Library or Search. */
+    val secret: StateFlow<Set<String>> = _secret
+    fun hideLocked(key: String) = setSecret(_secret.value + key)
+    fun unhideLocked(key: String) = setSecret(_secret.value - key)
+    private fun setSecret(v: Set<String>) {
+        _secret.value = v
+        sp.edit().putStringSet("secret_apps", v).apply()
+    }
+
+    /** "device" = phone's own lock (fingerprint / face / PIN), "pin" = launcher PIN. */
+    private val _lockMode = MutableStateFlow(sp.getString("lock_mode", "device")!!)
+    val lockMode: StateFlow<String> = _lockMode
+    fun setLockMode(v: String) {
+        _lockMode.value = v
+        sp.edit().putString("lock_mode", v).apply()
+    }
+
+    val hasPin: Boolean get() = sp.contains("pin_hash")
+
+    fun setPin(pin: String) {
+        val salt = java.util.UUID.randomUUID().toString()
+        sp.edit().putString("pin_salt", salt).putString("pin_hash", hash(salt, pin)).apply()
+    }
+
+    fun checkPin(pin: String): Boolean {
+        val salt = sp.getString("pin_salt", null) ?: return false
+        return sp.getString("pin_hash", null) == hash(salt, pin)
+    }
+
+    private fun hash(salt: String, pin: String): String =
+        java.security.MessageDigest.getInstance("SHA-256")
+            .digest((salt + ":" + pin).toByteArray())
+            .joinToString("") { "%02x".format(it) }
+
     fun setIconScale(v: Float) {
         _iconScale.value = v
         sp.edit().putFloat("icon_scale", v).apply()

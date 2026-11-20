@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -164,6 +165,20 @@ fun LauncherApp(
     val apps by repo.apps.collectAsStateWithLifecycle()
     val dockKeys by prefs.dock.collectAsState()
     val hidden by prefs.hidden.collectAsState()
+    val secret by prefs.secret.collectAsState()
+    val lockMode by prefs.lockMode.collectAsState()
+    // Locked hidden apps never show up on Home, Dock, App Library or Search.
+    val visibleApps = remember(apps, secret) { apps.filter { it.key !in secret } }
+    val secretApps = remember(apps, secret) { apps.filter { it.key in secret } }
+    var hiddenOpen by remember { mutableStateOf(false) }
+    val hiddenAnim = animateFloatAsState(
+        if (hiddenOpen) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 380f), label = "hidden",
+    )
+    val hiddenVisible by remember { derivedStateOf { hiddenAnim.value > 0.001f } }
+    var pinMode by remember { mutableStateOf<PinMode?>(null) }
+    var pinFirst by remember { mutableStateOf("") }
+    var pinAttempt by remember { mutableIntStateOf(0) }
+    var afterPin by remember { mutableStateOf<(() -> Unit)?>(null) }
     val wallpaperId by prefs.wallpaper.collectAsState()
     val wallpaperVersion by prefs.wallpaperVersion.collectAsState()
     val showLabels by prefs.showLabels.collectAsState()
@@ -209,11 +224,45 @@ fun LauncherApp(
         if (apps.isNotEmpty() && !prefs.dockInitialized) prefs.setDock(defaultDock(apps, if (phone) 4 else 6))
     }
 
-    val appByKey = remember(apps) { apps.associateBy { it.key } }
+    val appByKey = remember(visibleApps) { visibleApps.associateBy { it.key } }
     val dockApps = remember(dockKeys, appByKey) { dockKeys.mapNotNull { appByKey[it] }.take(profile.dockMax) }
-    val homeApps = remember(apps, dockApps, hidden) {
+    val homeApps = remember(visibleApps, dockApps, hidden) {
         val dockSet = dockApps.map { it.key }.toSet()
-        apps.filter { it.key !in hidden && it.key !in dockSet }
+        visibleApps.filter { it.key !in hidden && it.key !in dockSet }
+    }
+
+    fun startPin(mode: PinMode, then: (() -> Unit)?) {
+        pinFirst = ""
+        pinAttempt = 0
+        afterPin = then
+        pinMode = mode
+    }
+
+    /** Ask for the device lock or the launcher PIN, then run [then]. */
+    fun unlockThen(then: () -> Unit) {
+        val useDevice = lockMode == "device" && DeviceLock.available(activity)
+        when {
+            useDevice -> DeviceLock.authenticate(activity, onSuccess = then) { msg ->
+                if (msg.isNotBlank()) Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+            }
+            prefs.hasPin -> startPin(PinMode.Verify, then)
+            else -> {
+                Toast.makeText(ctx, "Create a 6-digit PIN for hidden apps", Toast.LENGTH_SHORT).show()
+                startPin(PinMode.Create, then)
+            }
+        }
+    }
+
+    fun hideAndLock(app: AppInfo) {
+        val doHide = {
+            prefs.hideLocked(app.key)
+            Toast.makeText(ctx, "${app.label} hidden — App Library → Hidden", Toast.LENGTH_SHORT).show()
+        }
+        val hasDeviceLock = lockMode == "device" && DeviceLock.available(activity)
+        if (hasDeviceLock || prefs.hasPin) doHide() else {
+            Toast.makeText(ctx, "Create a 6-digit PIN for hidden apps", Toast.LENGTH_SHORT).show()
+            startPin(PinMode.Create, doHide)
+        }
     }
     val iconSize = (profile.iconBase * iconScale).dp
 
@@ -307,6 +356,8 @@ fun LauncherApp(
         val obs = LifecycleEventObserver { _, ev ->
             when (ev) {
                 Lifecycle.Event.ON_STOP -> {
+                    hiddenOpen = false // re-lock whenever we leave
+                    pinMode = null
                     stopped = true
                     overlay.snapClosed()
                     menu = null
@@ -385,6 +436,8 @@ fun LauncherApp(
     BackHandler(enabled = true) {
         when {
             menu != null -> dismissMenu()
+            pinMode != null -> pinMode = null
+            hiddenOpen -> hiddenOpen = false
             pickerTarget != null -> pickerTarget = null
             settingsOpen -> settingsOpen = false
             overlay.isOpen -> overlay.close()
@@ -455,6 +508,8 @@ fun LauncherApp(
             activity.homeEvents.collect {
                 when {
                     menu != null -> dismissMenu()
+                    pinMode != null -> pinMode = null
+                    hiddenOpen -> hiddenOpen = false
                     pickerTarget != null -> pickerTarget = null
                     settingsOpen -> settingsOpen = false
                     overlay.isOpen -> overlay.close()
@@ -662,13 +717,14 @@ fun LauncherApp(
             if (overlayOpen) {
                 SpotlightOverlay(
                     ctrl = overlay,
-                    apps = apps,
+                    apps = visibleApps,
                     iconSize = libIconEff,
                     columns = GridCells.Fixed(libCols),
                     labelWidth = libCell - 4.dp,
                     onLaunch = { a, r -> launchApp(a, r) },
                     onLongClick = { a, r -> showMenu(a, r, MenuSource.Library) },
                     onWebSearch = { Actions.webSearch(ctx, it) },
+                    onOpenHidden = { unlockThen { hiddenOpen = true } },
                 )
             }
 
@@ -707,6 +763,20 @@ fun LauncherApp(
                     onLabels = prefs::setShowLabels,
                     onRestoreHidden = prefs::unhideAll,
                     onDefaultHome = { Actions.homeSettings(ctx) },
+                    lockMode = lockMode,
+                    hasPin = prefs.hasPin,
+                    onLockMode = { mode ->
+                        if (mode == "device" && !DeviceLock.available(activity)) {
+                            Toast.makeText(ctx, "No screen lock set on this device — use a launcher PIN", Toast.LENGTH_LONG).show()
+                        } else if (mode == "pin" && !prefs.hasPin) {
+                            startPin(PinMode.Create) { prefs.setLockMode("pin") }
+                        } else {
+                            prefs.setLockMode(mode)
+                        }
+                    },
+                    onChangePin = {
+                        if (prefs.hasPin) unlockThen { startPin(PinMode.Create, null) } else startPin(PinMode.Create, null)
+                    },
                     onDismiss = { settingsOpen = false },
                 )
             }
@@ -741,9 +811,68 @@ fun LauncherApp(
                 )
             }
 
+            if (hiddenVisible || hiddenOpen) {
+                HiddenAppsSheet(
+                    progress = { hiddenAnim.value },
+                    apps = secretApps,
+                    iconSize = libIconEff,
+                    labelWidth = libCell - 4.dp,
+                    onLaunch = { a, r -> launchApp(a, r) },
+                    onLongClick = { a, r -> showMenu(a, r, MenuSource.Hidden) },
+                    onDismiss = { hiddenOpen = false },
+                )
+            }
+
+            pinMode?.let { mode ->
+                PinPad(
+                    title = when (mode) {
+                        PinMode.Verify -> "Enter PIN"
+                        PinMode.Create -> "Create PIN"
+                        PinMode.Confirm -> "Confirm PIN"
+                    },
+                    subtitle = when {
+                        pinAttempt > 0 && mode == PinMode.Verify -> "Wrong PIN, try again"
+                        pinAttempt > 0 -> "PINs didn't match, start again"
+                        mode == PinMode.Verify -> "Unlock hidden apps"
+                        mode == PinMode.Create -> "Choose a 6-digit PIN for hidden apps"
+                        else -> "Enter the same PIN again"
+                    },
+                    attempt = pinAttempt,
+                    onComplete = { pin ->
+                        when (mode) {
+                            PinMode.Verify -> if (prefs.checkPin(pin)) {
+                                pinMode = null
+                                afterPin?.invoke()
+                            } else {
+                                pinAttempt++
+                            }
+                            PinMode.Create -> {
+                                pinFirst = pin
+                                pinAttempt = 0
+                                pinMode = PinMode.Confirm
+                            }
+                            PinMode.Confirm -> if (pin == pinFirst) {
+                                prefs.setPin(pin)
+                                pinMode = null
+                                Toast.makeText(ctx, "PIN saved", Toast.LENGTH_SHORT).show()
+                                afterPin?.invoke()
+                            } else {
+                                pinAttempt++
+                                pinMode = PinMode.Create
+                            }
+                        }
+                    },
+                    onCancel = { pinMode = null },
+                )
+            }
+
             menu?.let { m ->
                 val inDock = m.app.key in dockKeys
-                val actions = buildList {
+                val actions = if (m.source == MenuSource.Hidden) listOf(
+                    MenuAction("Unhide", Icons.Default.Lock) { prefs.unhideLocked(m.app.key) },
+                    MenuAction("App Info", Icons.Default.Info) { Actions.appInfo(ctx, m.app) },
+                    MenuAction("Uninstall", Icons.Default.Delete, destructive = true) { Actions.uninstall(ctx, m.app) },
+                ) else buildList {
                     if (m.source == MenuSource.Home) add(MenuAction("Edit Home Screen", Icons.Default.Edit) { editMode = true })
                     if (m.source == MenuSource.Library && m.app.key in hidden) {
                         add(MenuAction("Add to Home Screen", Icons.Default.Add) { prefs.unhide(m.app.key) })
@@ -756,6 +885,7 @@ fun LauncherApp(
                         },
                     )
                     if (m.source == MenuSource.Home) add(MenuAction("Remove from Home Screen", Icons.Default.Clear) { prefs.hide(m.app.key) })
+                    add(MenuAction("Hide & Lock", Icons.Default.Lock) { hideAndLock(m.app) })
                     add(MenuAction("App Info", Icons.Default.Info) { Actions.appInfo(ctx, m.app) })
                     add(MenuAction("Uninstall", Icons.Default.Delete, destructive = true) { Actions.uninstall(ctx, m.app) })
                 }

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -79,6 +81,8 @@ class OverlayController(private val scope: CoroutineScope) {
         private set
     var fromTop by mutableStateOf(false)
     var wantsKeyboard by mutableStateOf(false)
+    /** True while the sheet is being pushed away upwards (same swipe that opened it). */
+    var closingUp by mutableStateOf(false)
     private var job: Job? = null
 
     val isOpen: Boolean get() = progress > 0f
@@ -87,6 +91,7 @@ class OverlayController(private val scope: CoroutineScope) {
         if (progress == 0f) {
             this.fromTop = fromTop
             wantsKeyboard = fromTop
+            closingUp = false
         }
     }
 
@@ -98,6 +103,7 @@ class OverlayController(private val scope: CoroutineScope) {
     fun settle(open: Boolean, velocity: Float = 0f) = animateTo(if (open) 1f else 0f, velocity)
 
     fun open(fromTop: Boolean) {
+        closingUp = false
         this.fromTop = fromTop
         wantsKeyboard = fromTop
         animateTo(1f)
@@ -130,6 +136,7 @@ fun SpotlightOverlay(
     onLaunch: (AppInfo, androidx.compose.ui.geometry.Rect) -> Unit,
     onLongClick: (AppInfo, androidx.compose.ui.geometry.Rect) -> Unit,
     onWebSearch: (String) -> Unit,
+    onOpenHidden: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
@@ -149,29 +156,44 @@ fun SpotlightOverlay(
         }
     }
 
+    // Same gesture closes it: pull down at the top, or keep swiping up at the end of the list.
     val connection = remember(ctrl) {
         object : NestedScrollConnection {
+            var dir = 0 // 1 = closing downwards, -1 = closing upwards
+
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.UserInput && available.y < 0 && ctrl.progress < 1f) {
+                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                keyboard?.hide()
+                if (ctrl.progress < 1f && dir == 1 && available.y < 0) {
                     ctrl.dragBy(-available.y / dist)
+                    if (ctrl.progress >= 1f) dir = 0
                     return Offset(0f, available.y)
                 }
-                if (source == NestedScrollSource.UserInput) keyboard?.hide()
+                if (ctrl.progress < 1f && dir == -1 && available.y > 0) {
+                    ctrl.dragBy(available.y / dist)
+                    if (ctrl.progress >= 1f) dir = 0
+                    return Offset(0f, available.y)
+                }
                 return Offset.Zero
             }
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.UserInput && available.y > 0) {
-                    ctrl.dragBy(-available.y / dist)
-                    return Offset(0f, available.y)
+                if (source != NestedScrollSource.UserInput || available.y == 0f) return Offset.Zero
+                if (dir == 0) {
+                    dir = if (available.y > 0) 1 else -1
+                    ctrl.closingUp = dir == -1
                 }
-                return Offset.Zero
+                ctrl.dragBy(-kotlin.math.abs(available.y) / dist)
+                return Offset(0f, available.y)
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
+                val d = dir
+                dir = 0
                 if (ctrl.progress < 1f) {
-                    val v = available.y
-                    ctrl.settle(open = v < 1200f && (ctrl.progress > 0.7f || v < -600f), velocity = -v / dist)
+                    // velocity in the closing direction
+                    val v = if (d == -1) -available.y else available.y
+                    ctrl.settle(open = ctrl.progress > 0.75f && v < 600f, velocity = -v / dist)
                     return available
                 }
                 return Velocity.Zero
@@ -192,13 +214,36 @@ fun SpotlightOverlay(
             .graphicsLayer {
                 val p = ctrl.progress
                 alpha = p
-                val dir = if (ctrl.fromTop) -1f else 1f
+                val dir = if (ctrl.closingUp || ctrl.fromTop) -1f else 1f
                 translationY = (1f - p) * dir * 90.dp.toPx()
                 val s = 0.96f + 0.04f * p
                 scaleX = s; scaleY = s
             }
             .background(Color.Black.copy(alpha = 0.18f))
-            .pointerInput(Unit) { detectTapGestures { ctrl.close() } },
+            .pointerInput(Unit) { detectTapGestures { ctrl.close() } }
+            .pointerInput(Unit) {
+                // Swipes outside the list (header, edges): up or down closes, following the finger.
+                var d = 0
+                val tracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
+                detectVerticalDragGestures(
+                    onDragStart = { d = 0; tracker.resetTracking() },
+                    onDragEnd = {
+                        val v = tracker.calculateVelocity().y
+                        val toward = if (d == -1) -v else v
+                        ctrl.settle(open = ctrl.progress > 0.75f && toward < 600f, velocity = -toward / dist)
+                    },
+                    onDragCancel = { ctrl.settle(ctrl.progress > 0.5f) },
+                ) { change, dy ->
+                    tracker.addPosition(change.uptimeMillis, change.position)
+                    if (d == 0) {
+                        d = if (dy < 0) -1 else 1
+                        ctrl.closingUp = d == -1
+                        keyboard?.hide()
+                    }
+                    ctrl.dragBy(if (d == -1) dy / dist else -dy / dist)
+                    change.consume()
+                }
+            },
     ) {
         Column(
             Modifier
@@ -229,11 +274,28 @@ fun SpotlightOverlay(
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     if (q.isEmpty()) {
-                        Text(
-                            "App Library",
-                            color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 10.dp),
-                        )
+                        Row(
+                            Modifier.padding(start = 8.dp, top = 8.dp, bottom = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "App Library",
+                                color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Row(
+                                Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color.White.copy(alpha = 0.16f))
+                                    .clickable(onClick = onOpenHidden)
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Hidden", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     } else {
                         Column {
                             WebSearchRow(q) { onWebSearch(q) }
