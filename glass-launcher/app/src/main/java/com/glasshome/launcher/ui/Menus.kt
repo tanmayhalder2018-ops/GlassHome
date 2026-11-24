@@ -167,6 +167,9 @@ fun SettingsSheet(
     onRestoreHidden: () -> Unit,
     onDefaultHome: () -> Unit,
     lockMode: String,
+    doubleTapLock: Boolean,
+    lockServiceOn: Boolean,
+    onDoubleTapLock: (Boolean) -> Unit,
     hasPin: Boolean,
     onLockMode: (String) -> Unit,
     onChangePin: () -> Unit,
@@ -280,6 +283,27 @@ fun SettingsSheet(
                         Text("Removed from Home", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
                         Text("Restore $hiddenCount", color = Color(0xFF0A84FF), fontSize = 16.sp)
                     }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            SectionTitle("Lock")
+            Group {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Double-tap to lock", color = Color.White, fontSize = 16.sp)
+                        Text(
+                            if (!doubleTapLock) "Off"
+                            else if (lockServiceOn) "On — double-tap empty space on Home"
+                            else "Needs Accessibility permission — tap to turn on",
+                            color = if (doubleTapLock && !lockServiceOn) Color(0xFFFF9F0A) else Color.White.copy(alpha = 0.5f),
+                            fontSize = 12.sp,
+                            modifier = Modifier.clickable(enabled = doubleTapLock && !lockServiceOn) { onDoubleTapLock(true) },
+                        )
+                    }
+                    Switch(
+                        checked = doubleTapLock, onCheckedChange = onDoubleTapLock,
+                        colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFF30D158), checkedThumbColor = Color.White),
+                    )
                 }
             }
             Spacer(Modifier.height(14.dp))

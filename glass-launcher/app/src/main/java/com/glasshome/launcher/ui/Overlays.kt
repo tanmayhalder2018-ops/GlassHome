@@ -137,6 +137,11 @@ fun SpotlightOverlay(
     onLongClick: (AppInfo, androidx.compose.ui.geometry.Rect) -> Unit,
     onWebSearch: (String) -> Unit,
     onOpenHidden: () -> Unit,
+    folders: List<AppFolder>,
+    showFolders: Boolean,
+    onToggleFolders: () -> Unit,
+    folderColumns: GridCells,
+    onOpenFolder: (AppFolder) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
@@ -263,8 +268,9 @@ fun SpotlightOverlay(
             )
             Spacer(Modifier.height(14.dp))
             val imeBottom = with(density) { WindowInsets.ime.getBottom(this).toDp() }
+            val folderMode = showFolders && q.isEmpty()
             LazyVerticalGrid(
-                columns = columns,
+                columns = if (folderMode) folderColumns else columns,
                 modifier = Modifier
                     .widthIn(max = 1180.dp)
                     .fillMaxWidth()
@@ -283,6 +289,16 @@ fun SpotlightOverlay(
                                 color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
                                 modifier = Modifier.weight(1f),
                             )
+                            Text(
+                                if (showFolders) "A–Z" else "Folders",
+                                color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color.White.copy(alpha = 0.16f))
+                                    .clickable(onClick = onToggleFolders)
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Row(
                                 Modifier
                                     .clip(RoundedCornerShape(50))
@@ -307,7 +323,17 @@ fun SpotlightOverlay(
                         }
                     }
                 }
-                items(results, key = { it.key }) { app ->
+                if (folderMode) {
+                    items(folders, key = { "folder:" + it.name }) { f ->
+                        FolderCard(
+                            folder = f,
+                            onLaunch = onLaunch,
+                            onLongClick = onLongClick,
+                            onOpen = { onOpenFolder(f) },
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+                        )
+                    }
+                } else items(results, key = { it.key }) { app ->
                     Box(Modifier.padding(vertical = 12.dp).animateItem(), contentAlignment = Alignment.Center) {
                         AppIcon(
                             app = app,

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Glass Launcher</string>
+    <string name="lock_service_label">Glass Launcher – Double-tap to lock</string>
+    <string name="lock_service_description">Lets Glass Launcher turn the screen off when you double-tap an empty part of the home screen, just like pressing the power button. It does not read or collect anything on your screen.</string>
 </resources>

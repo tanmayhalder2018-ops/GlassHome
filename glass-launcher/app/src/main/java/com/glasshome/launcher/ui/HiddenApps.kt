@@ -191,6 +191,8 @@ fun HiddenAppsSheet(
     onLaunch: (AppInfo, Rect) -> Unit,
     onLongClick: (AppInfo, Rect) -> Unit,
     onDismiss: () -> Unit,
+    title: String = "Hidden",
+    locked: Boolean = true,
 ) {
     Box(
         Modifier
@@ -216,9 +218,11 @@ fun HiddenAppsSheet(
                 .padding(20.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Hidden", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (locked) {
+                    Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Box(
                     Modifier.size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.12f)).clickable(onClick = onDismiss),
                     contentAlignment = Alignment.Center,

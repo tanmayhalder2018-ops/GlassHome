@@ -102,6 +102,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.glasshome.launcher.LockService
 import com.glasshome.launcher.MainActivity
 import com.glasshome.launcher.data.AppInfo
 import com.glasshome.launcher.data.AppRepository
@@ -179,6 +180,27 @@ fun LauncherApp(
     var pinFirst by remember { mutableStateOf("") }
     var pinAttempt by remember { mutableIntStateOf(0) }
     var afterPin by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val lastLaunch by prefs.lastLaunch.collectAsState()
+    val doubleTapLock by prefs.doubleTapLock.collectAsState()
+    val libraryFolders by prefs.libraryFolders.collectAsState()
+    val folders = remember(visibleApps, lastLaunch) { Categorizer.folders(visibleApps, lastLaunch) }
+    var openFolder by remember { mutableStateOf<AppFolder?>(null) }
+    var lastFolder by remember { mutableStateOf<AppFolder?>(null) }
+    val folderAnim = animateFloatAsState(
+        if (openFolder != null) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 380f), label = "folder",
+    )
+    val folderVisible by remember { derivedStateOf { folderAnim.value > 0.001f } }
+
+    fun lockScreen() {
+        if (!LockService.lock()) {
+            Toast.makeText(
+                ctx,
+                "Turn on “Glass Launcher – Double-tap to lock” in Accessibility to lock with a double-tap",
+                Toast.LENGTH_LONG,
+            ).show()
+            LockService.openSettings(ctx)
+        }
+    }
     val wallpaperId by prefs.wallpaper.collectAsState()
     val wallpaperVersion by prefs.wallpaperVersion.collectAsState()
     val showLabels by prefs.showLabels.collectAsState()
@@ -287,6 +309,7 @@ fun LauncherApp(
         // Hide the keyboard first so its own animation doesn't fight the app opening.
         focusManager.clearFocus(force = true)
         keyboard?.hide()
+        prefs.recordLaunch(app.key)
         Actions.launch(activity, app, r)
         // Tidy up while the app is still covering us, so the frame Android shows
         // when we come back is the clean home screen (not a half-closed sheet).
@@ -356,6 +379,7 @@ fun LauncherApp(
         val obs = LifecycleEventObserver { _, ev ->
             when (ev) {
                 Lifecycle.Event.ON_STOP -> {
+                    openFolder = null
                     hiddenOpen = false // re-lock whenever we leave
                     pinMode = null
                     stopped = true
@@ -437,6 +461,7 @@ fun LauncherApp(
         when {
             menu != null -> dismissMenu()
             pinMode != null -> pinMode = null
+            openFolder != null -> openFolder = null
             hiddenOpen -> hiddenOpen = false
             pickerTarget != null -> pickerTarget = null
             settingsOpen -> settingsOpen = false
@@ -509,6 +534,7 @@ fun LauncherApp(
                 when {
                     menu != null -> dismissMenu()
                     pinMode != null -> pinMode = null
+                    openFolder != null -> openFolder = null
                     hiddenOpen -> hiddenOpen = false
                     pickerTarget != null -> pickerTarget = null
                     settingsOpen -> settingsOpen = false
@@ -668,6 +694,7 @@ fun LauncherApp(
                                     onMenu = { a, r -> showMenu(a, r, MenuSource.Home) },
                                     onRemove = { prefs.hide(it.key) },
                                     onRemoveWidget = { spec -> removeWidget(homeWidgets, spec, prefs::setHomeWidgets) },
+                                    onDoubleTap = { if (doubleTapLock) lockScreen() },
                                 )
                             }
                         }
@@ -725,6 +752,11 @@ fun LauncherApp(
                     onLongClick = { a, r -> showMenu(a, r, MenuSource.Library) },
                     onWebSearch = { Actions.webSearch(ctx, it) },
                     onOpenHidden = { unlockThen { hiddenOpen = true } },
+                    folders = folders,
+                    showFolders = libraryFolders,
+                    onToggleFolders = { prefs.setLibraryFolders(!libraryFolders) },
+                    folderColumns = GridCells.Adaptive(if (phone) 150.dp else 190.dp),
+                    onOpenFolder = { f -> openFolder = f; lastFolder = f },
                 )
             }
 
@@ -764,6 +796,12 @@ fun LauncherApp(
                     onRestoreHidden = prefs::unhideAll,
                     onDefaultHome = { Actions.homeSettings(ctx) },
                     lockMode = lockMode,
+                    doubleTapLock = doubleTapLock,
+                    lockServiceOn = LockService.enabled,
+                    onDoubleTapLock = { on ->
+                        prefs.setDoubleTapLock(on)
+                        if (on && !LockService.enabled) LockService.openSettings(ctx)
+                    },
                     hasPin = prefs.hasPin,
                     onLockMode = { mode ->
                         if (mode == "device" && !DeviceLock.available(activity)) {
@@ -821,6 +859,25 @@ fun LauncherApp(
                     onLongClick = { a, r -> showMenu(a, r, MenuSource.Hidden) },
                     onDismiss = { hiddenOpen = false },
                 )
+            }
+
+            if (folderVisible || openFolder != null) {
+                val f = openFolder ?: lastFolder
+                if (f != null) {
+                    // Refresh the folder's contents if apps changed while it is open.
+                    val live = folders.firstOrNull { it.name == f.name } ?: f
+                    HiddenAppsSheet(
+                        progress = { folderAnim.value },
+                        apps = live.apps,
+                        iconSize = libIconEff,
+                        labelWidth = libCell - 4.dp,
+                        onLaunch = { a, r -> launchApp(a, r) },
+                        onLongClick = { a, r -> showMenu(a, r, MenuSource.Library) },
+                        onDismiss = { openFolder = null },
+                        title = live.name,
+                        locked = false,
+                    )
+                }
             }
 
             pinMode?.let { mode ->
@@ -995,6 +1052,7 @@ private fun HomePage(
     onMenu: (AppInfo, Rect) -> Unit,
     onRemove: (AppInfo) -> Unit,
     onRemoveWidget: (String) -> Unit,
+    onDoubleTap: () -> Unit,
 ) {
     val edit by rememberUpdatedState(editMode)
     val density = LocalDensity.current.density
@@ -1006,6 +1064,7 @@ private fun HomePage(
                 detectTapGestures(
                     onLongPress = { onEnterEdit() },
                     onTap = { if (edit) onExitEdit() },
+                    onDoubleTap = { if (!edit) onDoubleTap() },
                 )
             },
     ) {

@@ -34,6 +34,8 @@ data class AppInfo(
     val component: ComponentName,
     val user: UserHandle,
     val icon: ImageBitmap,
+    val category: Int = -1,
+    val installed: Long = 0L,
 )
 
 /** Loads every launchable app and keeps the list fresh as apps are installed or removed. */
@@ -99,7 +101,11 @@ class AppRepository(private val context: Context, private val scope: CoroutineSc
                             synchronized(iconCache) { iconCache[key] = it }
                         }
                     }
-                    AppInfo(key, info.label?.toString() ?: info.componentName.packageName, info.componentName, user, icon)
+                    AppInfo(
+                        key, info.label?.toString() ?: info.componentName.packageName, info.componentName, user, icon,
+                        category = runCatching { info.applicationInfo.category }.getOrDefault(-1),
+                        installed = runCatching { info.firstInstallTime }.getOrDefault(0L),
+                    )
                 }
                 .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
             _apps.value = list

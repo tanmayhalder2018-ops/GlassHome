@@ -169,6 +169,33 @@ class LauncherPrefs(context: Context) {
             .digest((salt + ":" + pin).toByteArray())
             .joinToString("") { "%02x".format(it) }
 
+    // ---- Launch history (for App Library "Suggestions") ----
+    private val _lastLaunch = MutableStateFlow(
+        sp.all.filterKeys { it.startsWith("launch_") }
+            .mapNotNull { (k, v) -> (v as? Long)?.let { k.removePrefix("launch_") to it } }
+            .toMap(),
+    )
+    val lastLaunch: StateFlow<Map<String, Long>> = _lastLaunch
+    fun recordLaunch(key: String) {
+        val t = System.currentTimeMillis()
+        _lastLaunch.value = _lastLaunch.value + (key to t)
+        sp.edit().putLong("launch_$key", t).apply()
+    }
+
+    private val _doubleTapLock = MutableStateFlow(sp.getBoolean("double_tap_lock", true))
+    val doubleTapLock: StateFlow<Boolean> = _doubleTapLock
+    fun setDoubleTapLock(v: Boolean) {
+        _doubleTapLock.value = v
+        sp.edit().putBoolean("double_tap_lock", v).apply()
+    }
+
+    private val _libraryFolders = MutableStateFlow(sp.getBoolean("library_folders", true))
+    val libraryFolders: StateFlow<Boolean> = _libraryFolders
+    fun setLibraryFolders(v: Boolean) {
+        _libraryFolders.value = v
+        sp.edit().putBoolean("library_folders", v).apply()
+    }
+
     fun setIconScale(v: Float) {
         _iconScale.value = v
         sp.edit().putFloat("icon_scale", v).apply()
