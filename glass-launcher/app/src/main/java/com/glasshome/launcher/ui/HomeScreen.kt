@@ -102,7 +102,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.glasshome.launcher.LockService
 import com.glasshome.launcher.MainActivity
 import com.glasshome.launcher.data.AppInfo
 import com.glasshome.launcher.data.AppRepository
@@ -181,7 +180,6 @@ fun LauncherApp(
     var pinAttempt by remember { mutableIntStateOf(0) }
     var afterPin by remember { mutableStateOf<(() -> Unit)?>(null) }
     val lastLaunch by prefs.lastLaunch.collectAsState()
-    val doubleTapLock by prefs.doubleTapLock.collectAsState()
     val libraryFolders by prefs.libraryFolders.collectAsState()
     val folders = remember(visibleApps, lastLaunch) { Categorizer.folders(visibleApps, lastLaunch) }
     var openFolder by remember { mutableStateOf<AppFolder?>(null) }
@@ -191,15 +189,6 @@ fun LauncherApp(
     )
     val folderVisible by remember { derivedStateOf { folderAnim.value > 0.001f } }
 
-    fun lockScreen() {
-        if (!LockService.lock()) {
-            Toast.makeText(
-                ctx,
-                "Turn on “Glass Launcher – Double-tap to lock” in Accessibility to lock with a double-tap",
-                Toast.LENGTH_LONG,
-            ).show()
-            LockService.openSettings(ctx)
-        }
     }
     val wallpaperId by prefs.wallpaper.collectAsState()
     val wallpaperVersion by prefs.wallpaperVersion.collectAsState()
@@ -694,7 +683,6 @@ fun LauncherApp(
                                     onMenu = { a, r -> showMenu(a, r, MenuSource.Home) },
                                     onRemove = { prefs.hide(it.key) },
                                     onRemoveWidget = { spec -> removeWidget(homeWidgets, spec, prefs::setHomeWidgets) },
-                                    onDoubleTap = { if (doubleTapLock) lockScreen() },
                                 )
                             }
                         }
@@ -796,12 +784,6 @@ fun LauncherApp(
                     onRestoreHidden = prefs::unhideAll,
                     onDefaultHome = { Actions.homeSettings(ctx) },
                     lockMode = lockMode,
-                    doubleTapLock = doubleTapLock,
-                    lockServiceOn = LockService.enabled,
-                    onDoubleTapLock = { on ->
-                        prefs.setDoubleTapLock(on)
-                        if (on && !LockService.enabled) LockService.openSettings(ctx)
-                    },
                     hasPin = prefs.hasPin,
                     onLockMode = { mode ->
                         if (mode == "device" && !DeviceLock.available(activity)) {
@@ -1052,7 +1034,6 @@ private fun HomePage(
     onMenu: (AppInfo, Rect) -> Unit,
     onRemove: (AppInfo) -> Unit,
     onRemoveWidget: (String) -> Unit,
-    onDoubleTap: () -> Unit,
 ) {
     val edit by rememberUpdatedState(editMode)
     val density = LocalDensity.current.density
@@ -1064,7 +1045,6 @@ private fun HomePage(
                 detectTapGestures(
                     onLongPress = { onEnterEdit() },
                     onTap = { if (edit) onExitEdit() },
-                    onDoubleTap = { if (!edit) onDoubleTap() },
                 )
             },
     ) {
