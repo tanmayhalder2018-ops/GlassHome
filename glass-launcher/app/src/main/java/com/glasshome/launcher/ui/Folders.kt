@@ -21,7 +21,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,11 +72,6 @@ object Categorizer {
 
     fun folders(apps: List<AppInfo>, lastLaunch: Map<String, Long>): List<AppFolder> {
         val out = mutableListOf<AppFolder>()
-        val recent = apps.filter { (lastLaunch[it.key] ?: 0L) > 0L }.sortedByDescending { lastLaunch[it.key] }.take(8)
-        if (recent.isNotEmpty()) out += AppFolder("Suggestions", recent)
-        val weekAgo = System.currentTimeMillis() - 14L * 24 * 3600 * 1000
-        val added = apps.filter { it.installed > weekAgo }.sortedByDescending { it.installed }.take(8)
-        if (added.isNotEmpty()) out += AppFolder("Recently Added", added)
         val groups = apps.groupBy { match(it) }
         // Busiest folders first (like iPhone sorts by use), "Other" always last.
         groups.filterKeys { it != "Other" }.entries
@@ -94,17 +93,20 @@ fun FolderCard(
     folder: AppFolder,
     onLaunch: (AppInfo, Rect) -> Unit,
     onLongClick: (AppInfo, Rect) -> Unit,
-    onOpen: () -> Unit,
+    onOpen: (Offset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val center = remember { arrayOf(Offset.Unspecified) }
+    val open = { onOpen(center[0]) }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
+                .onGloballyPositioned { center[0] = it.boundsInWindow().center }
                 .clip(RoundedCornerShape(30.dp))
                 .background(Color.White.copy(alpha = 0.16f))
-                .clickable(onClick = onOpen)
+                .clickable(onClick = open)
                 .padding(14.dp),
         ) {
             val gap = 12.dp
@@ -118,7 +120,7 @@ fun FolderCard(
                             val i = row * 2 + col
                             Box(Modifier.size(slot), contentAlignment = Alignment.Center) {
                                 if (i == 3 && showMini) {
-                                    MiniGrid(apps.drop(3).take(4), slot, onOpen)
+                                    MiniGrid(apps.drop(3).take(4), slot, open)
                                 } else {
                                     apps.getOrNull(i)?.let { app ->
                                         androidx.compose.runtime.key(app.key) {

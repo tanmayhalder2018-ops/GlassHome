@@ -52,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -193,7 +195,10 @@ fun HiddenAppsSheet(
     onDismiss: () -> Unit,
     title: String = "Hidden",
     locked: Boolean = true,
+    origin: androidx.compose.ui.geometry.Offset = androidx.compose.ui.geometry.Offset.Unspecified,
 ) {
+    val lastLeft = remember { floatArrayOf(0f) }
+    val lastTop = remember { floatArrayOf(0f) }
     Box(
         Modifier
             .fillMaxSize()
@@ -208,9 +213,23 @@ fun HiddenAppsSheet(
                 .padding(20.dp)
                 .widthIn(max = 720.dp)
                 .fillMaxWidth()
+                .onGloballyPositioned { c ->
+                    // Measured outside our own transform, so the origin maths stays exact.
+                    val bb = c.boundsInWindow()
+                    lastLeft[0] = bb.left; lastTop[0] = bb.top
+                }
                 .graphicsLayer {
-                    val s = 0.85f + 0.15f * progress()
+                    // Grows out of the tapped folder (or the centre) like an iPhone folder.
+                    val p = progress().coerceIn(0f, 1.05f)
+                    val s = 0.35f + 0.65f * p
                     scaleX = s; scaleY = s
+                    if (origin != androidx.compose.ui.geometry.Offset.Unspecified) {
+                        val sw = size.width
+                        val sh = size.height
+                        // Move the sheet's centre towards the folder while it is small.
+                        translationX = (origin.x - (lastLeft[0] + sw / 2f)) * (1f - p)
+                        translationY = (origin.y - (lastTop[0] + sh / 2f)) * (1f - p)
+                    }
                 }
                 .clip(RoundedCornerShape(36.dp))
                 .background(Color(0xE61C1C1E))

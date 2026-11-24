@@ -141,7 +141,7 @@ fun SpotlightOverlay(
     showFolders: Boolean,
     onToggleFolders: () -> Unit,
     folderColumns: GridCells,
-    onOpenFolder: (AppFolder) -> Unit,
+    onOpenFolder: (AppFolder, Offset) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
@@ -329,7 +329,7 @@ fun SpotlightOverlay(
                             folder = f,
                             onLaunch = onLaunch,
                             onLongClick = onLongClick,
-                            onOpen = { onOpenFolder(f) },
+                            onOpen = { o -> onOpenFolder(f, o) },
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
                         )
                     }

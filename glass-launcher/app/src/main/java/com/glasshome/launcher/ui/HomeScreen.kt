@@ -183,6 +183,7 @@ fun LauncherApp(
     val libraryFolders by prefs.libraryFolders.collectAsState()
     val folders = remember(visibleApps, lastLaunch) { Categorizer.folders(visibleApps, lastLaunch) }
     var openFolder by remember { mutableStateOf<AppFolder?>(null) }
+    var folderOrigin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Unspecified) }
     var lastFolder by remember { mutableStateOf<AppFolder?>(null) }
     val folderAnim = animateFloatAsState(
         if (openFolder != null) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 380f), label = "folder",
@@ -313,7 +314,7 @@ fun LauncherApp(
         scope.launch {
             entrance.snapTo(1f)
             unlock.snapTo(0f)
-            unlock.animateTo(1f, spring(dampingRatio = 0.78f, stiffness = 120f))
+            unlock.animateTo(1f, spring(dampingRatio = 0.86f, stiffness = 110f))
         }
     }
 
@@ -601,9 +602,9 @@ fun LauncherApp(
                     }
                 },
         ) {
-            // The sharp wallpaper is drawn by Android behind this window (fast, always in sync).
-            // On top we fade in a pre-blurred copy: behind sheets/menus, and on unlock it starts
-            // zoomed-in and blurred, then shrinks and fades to reveal the sharp one (like iPhone).
+            // The sharp wallpaper is always drawn by Android behind this window, so its position
+            // never changes. On top we only fade a pre-blurred copy in and out (no zoom, so
+            // nothing can look shifted): behind sheets/menus, and blur -> sharp on unlock.
             wallpaper?.let { wp ->
                 Image(
                     wp.blurred, null,
@@ -613,32 +614,37 @@ fun LauncherApp(
                         .graphicsLayer {
                             val u = unlock.value
                             val sheets = maxOf(overlay.progress, menuAnim.value, settingsAnim.value, pickerAnim.value)
-                            val unlockA = ((1f - u) * 1.5f).coerceIn(0f, 1f)
+                            val unlockA = ((1f - u) * 1.3f).coerceIn(0f, 1f)
                             alpha = maxOf(unlockA, sheets.coerceIn(0f, 1f))
-                            val sc = 1f + 0.16f * (1f - u)
-                            scaleX = sc
-                            scaleY = sc
                         },
                 )
             }
-            // Content layer: icons fly in from slightly larger and fade in.
+            // Soft dark veil that lifts on unlock (works even without wallpaper access).
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = ((1f - unlock.value) * 0.45f).coerceIn(0f, 0.45f) }
+                    .background(Color.Black),
+            )
+            // Content layer: icons fly in individually (see UnlockFx); widgets/dock glass fade in.
             Box(
                 Modifier
                     .fillMaxSize()
                     .graphicsLayer {
                         val u = unlock.value
-                        val e = entrance.value
-                        val uc = ((u - 0.12f) / 0.88f).coerceAtLeast(0f)
-                        val sc = (1f + 0.32f * (1f - uc)) * (1f + 0.09f * (1f - e))
-                        scaleX = sc
-                        scaleY = sc
-                        alpha = uc.coerceIn(0f, 1f) * (0.55f + 0.45f * e.coerceIn(0f, 1f))
+                        alpha = (u * 1.8f).coerceIn(0f, 1f)
                     }
                     .onGloballyPositioned { glassRoot.coords = it },
             ) {
+                val fx = remember(rootSize) {
+                    val cx = rootSize.width / 2f
+                    val cy = rootSize.height / 2f
+                    UnlockFx({ unlock.value }, cx, cy, kotlin.math.sqrt(cx * cx + cy * cy))
+                }
                 CompositionLocalProvider(
                     LocalGlass provides GlassEnv(wallpaper?.blurred, rootSize, glassRoot),
                     LocalContentColor provides Color.White,
+                    LocalUnlockFx provides fx,
                 ) {
                     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
                         Spacer(Modifier.height(profile.topReserve))
@@ -743,7 +749,7 @@ fun LauncherApp(
                     showFolders = libraryFolders,
                     onToggleFolders = { prefs.setLibraryFolders(!libraryFolders) },
                     folderColumns = GridCells.Adaptive(if (phone) 150.dp else 190.dp),
-                    onOpenFolder = { f -> openFolder = f; lastFolder = f },
+                    onOpenFolder = { f, origin -> folderOrigin = origin; openFolder = f; lastFolder = f },
                 )
             }
 
@@ -857,6 +863,7 @@ fun LauncherApp(
                         onDismiss = { openFolder = null },
                         title = live.name,
                         locked = false,
+                        origin = folderOrigin,
                     )
                 }
             }

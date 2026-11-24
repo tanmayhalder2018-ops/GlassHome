@@ -37,6 +37,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,6 +79,14 @@ internal fun rememberJiggle(seed: String, amount: Float = 2.2f): State<Float> {
 
 private val NoRotation = mutableStateOf(0f)
 
+/**
+ * iPhone-style unlock: while [progress] goes 0 -> 1, every icon flies in from further out
+ * (the further from the centre, the later it lands) and fades in.
+ */
+class UnlockFx(val progress: () -> Float, val cx: Float, val cy: Float, val maxDist: Float)
+
+val LocalUnlockFx = staticCompositionLocalOf<UnlockFx?> { null }
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppIcon(
@@ -99,11 +108,31 @@ fun AppIcon(
         label = "press",
     )
     val bounds = remember { arrayOf(Rect.Zero) }
+    val restCenter = remember { arrayOf(Offset.Unspecified) }
+    val fx = LocalUnlockFx.current
     val haptic = LocalHapticFeedback.current
     val rotation = if (jiggle) rememberJiggle(app.key) else NoRotation
 
     Column(
-        modifier.width(if (!showLabel) iconSize else if (labelWidth != Dp.Unspecified) maxOf(labelWidth, iconSize) else iconSize + 30.dp),
+        modifier
+            .graphicsLayer {
+                if (fx == null) return@graphicsLayer
+                val u = fx.progress()
+                val c = restCenter[0]
+                if (u >= 1f || c == Offset.Unspecified) return@graphicsLayer
+                val dx = c.x - fx.cx
+                val dy = c.y - fx.cy
+                val d = (kotlin.math.sqrt(dx * dx + dy * dy) / fx.maxDist).coerceIn(0f, 1f)
+                val local = ((u - d * 0.28f) / 0.72f).coerceIn(0f, 1f)
+                val e = 1f - local
+                translationX = dx * 0.5f * e
+                translationY = dy * 0.5f * e
+                val sc = 1f + 0.4f * e
+                scaleX = sc
+                scaleY = sc
+                alpha = local
+            }
+            .width(if (!showLabel) iconSize else if (labelWidth != Dp.Unspecified) maxOf(labelWidth, iconSize) else iconSize + 30.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -118,7 +147,12 @@ fun AppIcon(
                 contentDescription = app.label,
                 modifier = Modifier
                     .size(iconSize)
-                    .onGloballyPositioned { bounds[0] = it.boundsInWindow() }
+                    .onGloballyPositioned {
+                        val b = it.boundsInWindow()
+                        bounds[0] = b
+                        // Remember where the icon rests (not while it is flying in).
+                        if (fx == null || fx.progress() >= 1f) restCenter[0] = b.center
+                    }
                     .combinedClickable(
                         interactionSource = interaction,
                         indication = null,
