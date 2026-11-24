@@ -189,7 +189,6 @@ fun LauncherApp(
     )
     val folderVisible by remember { derivedStateOf { folderAnim.value > 0.001f } }
 
-    }
     val wallpaperId by prefs.wallpaper.collectAsState()
     val wallpaperVersion by prefs.wallpaperVersion.collectAsState()
     val showLabels by prefs.showLabels.collectAsState()
