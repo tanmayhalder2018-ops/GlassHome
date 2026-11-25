@@ -1,13 +1,12 @@
 import { LazyMotion, MotionConfig, domMax } from 'framer-motion'
 import { Navbar } from './components/Navbar'
 import { Hero } from './components/Hero'
-import { Marquee } from './components/Marquee'
+import { Highlights } from './components/Highlights'
 import { ArtistIntroduction } from './components/ArtistIntroduction'
 import { Services } from './components/Services'
 import { Gallery } from './components/Gallery'
 import { BrandStory } from './components/BrandStory'
 import { BookingForm } from './components/BookingForm'
-import { InstagramSection } from './components/InstagramSection'
 import { Contact } from './components/Contact'
 import { Footer } from './components/Footer'
 import { FloatingWhatsApp } from './components/FloatingWhatsApp'
@@ -25,7 +24,7 @@ export default function App() {
           <Navbar />
           <main id="main">
             <Hero />
-            <Marquee />
+            <Highlights />
             <ArtistIntroduction />
             <Services />
             <ServiceAreas />
@@ -33,7 +32,6 @@ export default function App() {
             <BrandStory />
             <BookingForm />
             <Faq />
-            <InstagramSection />
             <Contact />
           </main>
           <Footer />

@@ -2,36 +2,60 @@
  * ─────────────────────────────────────────────
  *  SERVICE AREAS & FAQ — edit freely
  * ─────────────────────────────────────────────
- * Maslandapur is the only business location. The other areas are places
- * where Trisha travels to the client's home or venue for bookings
- * (confirmed by the owner). Do not add an area unless she takes bookings there,
- * and never add addresses for them — there is no office outside Maslandapur.
+ * Maslandapur is the only business location. Every other place is somewhere
+ * Trisha travels to the client's home or venue for bookings (confirmed by the
+ * owner). Only add a place if she takes bookings there, and never add an
+ * address for it — there is no office outside Maslandapur.
  */
 
 export interface Area {
   name: string
   /** Bengali name, shown alongside the English one. */
   bn: string
-  note: string
   primary?: boolean
 }
 
-export const AREAS: Area[] = [
-  {
-    name: 'Maslandapur',
-    bn: 'মছলন্দপুর',
-    note: 'Home base — bridal, custom and festive mehendi, at your home or venue.',
-    primary: true,
-  },
-  { name: 'Barasat', bn: 'বারাসাত', note: 'Bridal and custom mehendi bookings at your home or venue.' },
-  { name: 'Madhyamgram', bn: 'মধ্যমগ্রাম', note: 'Bridal, engagement and party mehendi at your home or venue.' },
-  { name: 'Kolkata', bn: 'কলকাতা', note: 'Wedding and celebration bookings — share your venue and date.' },
+export interface District {
+  name: string
+  bn: string
+  areas: Area[]
+  /** Short line under the district, e.g. about nearby towns. */
+  note?: string
+}
+
+export const DISTRICTS: District[] = [
   {
     name: 'North 24 Parganas',
     bn: 'উত্তর ২৪ পরগনা',
-    note: 'Other towns across the district, depending on the date and distance.',
+    areas: [
+      { name: 'Maslandapur', bn: 'মছলন্দপুর', primary: true },
+      { name: 'Barasat', bn: 'বারাসাত' },
+      { name: 'Madhyamgram', bn: 'মধ্যমগ্রাম' },
+      { name: 'Bongaon', bn: 'বনগাঁ' },
+    ],
+    note: 'Other towns in the district too, depending on the date.',
+  },
+  {
+    name: 'Nadia',
+    bn: 'নদিয়া',
+    areas: [
+      { name: 'Ranaghat', bn: 'রানাঘাট' },
+      { name: 'Kalyani', bn: 'কল্যাণী' },
+      { name: 'Santipur', bn: 'শান্তিপুর' },
+      { name: 'Majhergram', bn: 'মাঝেরগ্রাম' },
+    ],
+    note: 'Other towns in Nadia too, depending on the date.',
+  },
+  {
+    name: 'Kolkata',
+    bn: 'কলকাতা',
+    areas: [{ name: 'Kolkata', bn: 'কলকাতা' }],
+    note: 'Weddings and celebrations — share your venue and date.',
   },
 ]
+
+/** Flat list of every named place (used for structured data and tests). */
+export const ALL_AREAS = DISTRICTS.flatMap((d) => d.areas.map((a) => a.name))
 
 export interface Faq {
   q: string
@@ -49,19 +73,19 @@ export const FAQS: Faq[] = [
     link: { href: '#about', label: 'Meet Trisha' },
   },
   {
-    q: 'Do you provide bridal mehendi in Barasat and Madhyamgram?',
-    a: 'Yes. Trisha accepts bridal, engagement and custom mehendi bookings in Barasat and Madhyamgram, at your home or venue. Share your date and location on WhatsApp to check availability.',
+    q: 'Do you provide bridal mehendi in Barasat, Madhyamgram and Bongaon?',
+    a: 'Yes. Trisha accepts bridal, engagement and custom mehendi bookings in Barasat, Madhyamgram, Bongaon and other towns of North 24 Parganas, at your home or venue. Share your date and location on WhatsApp to check availability.',
     link: { href: '#services', label: 'See bridal mehendi' },
+  },
+  {
+    q: 'Do you take bookings in Nadia — Ranaghat, Kalyani, Santipur or Majhergram?',
+    a: 'Yes. Trisha travels to Ranaghat, Kalyani, Santipur, Majhergram and other towns in Nadia for bridal and custom mehendi. Send your venue and date, and the travel details are agreed with you before the booking is confirmed.',
+    link: { href: '#areas', label: 'See all service areas' },
   },
   {
     q: 'Do you travel to Kolkata for weddings?',
     a: 'Yes, Trisha takes wedding and celebration bookings in Kolkata. Send your venue, date and the number of people, and the travel details are agreed with you before the booking is confirmed.',
     link: { href: '#booking', label: 'Send a booking enquiry' },
-  },
-  {
-    q: 'Do you accept bookings elsewhere in North 24 Parganas?',
-    a: 'Yes, bookings in other towns of North 24 Parganas are accepted depending on the date and distance. Message Trisha with your location to confirm.',
-    link: { href: '#booking', label: 'Check your date' },
   },
   {
     q: 'Can I get a custom design with names or initials?',
@@ -76,7 +100,7 @@ export const FAQS: Faq[] = [
   {
     lang: 'bn',
     q: 'আপনি কি বাড়িতে এসে মেহেন্দি করেন?',
-    a: 'হ্যাঁ। ত্রিশা মছলন্দপুর থেকে বারাসাত, মধ্যমগ্রাম, কলকাতা এবং উত্তর ২৪ পরগনার বিভিন্ন জায়গায় আপনার বাড়ি বা অনুষ্ঠানস্থলে গিয়ে ব্রাইডাল ও কাস্টম মেহেন্দি করেন। তারিখ ও জায়গা জানিয়ে হোয়াটসঅ্যাপে মেসেজ করুন।',
+    a: 'হ্যাঁ। ত্রিশা মছলন্দপুর থেকে বারাসাত, মধ্যমগ্রাম, বনগাঁ, কলকাতা এবং নদিয়ার রানাঘাট, কল্যাণী, শান্তিপুর, মাঝেরগ্রাম-সহ বিভিন্ন জায়গায় আপনার বাড়ি বা অনুষ্ঠানস্থলে গিয়ে ব্রাইডাল ও কাস্টম মেহেন্দি করেন। তারিখ ও জায়গা জানিয়ে হোয়াটসঅ্যাপে মেসেজ করুন।',
     link: { href: '#booking', label: 'বুকিং করুন' },
   },
   {

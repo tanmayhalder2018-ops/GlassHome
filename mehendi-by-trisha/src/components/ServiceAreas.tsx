@@ -1,9 +1,8 @@
 import { m } from 'framer-motion'
-import { MapPin, ArrowUpRight } from 'lucide-react'
-import { AREAS } from '../data/areas'
+import { MapPin, Home } from 'lucide-react'
+import { DISTRICTS } from '../data/areas'
 import { whatsappLink } from '../config/site'
 import { Reveal, RevealText, ease } from './Reveal'
-import { Vine } from './Botanical'
 
 function areaEnquiry(area: string) {
   return whatsappLink(
@@ -11,7 +10,7 @@ function areaEnquiry(area: string) {
   )
 }
 
-/** Where Trisha works: Maslandapur (home base) plus the areas she travels to. */
+/** Where Trisha works: Maslandapur (home base) plus the towns she travels to, grouped by district. */
 export function ServiceAreas() {
   return (
     <section id="areas" className="section areas" aria-labelledby="areas-title">
@@ -23,55 +22,53 @@ export function ServiceAreas() {
           <h2 id="areas-title" className="section-title">
             <RevealText text="From Maslandapur," /> <RevealText text="to your doorstep" className="italic" delay={0.12} />
           </h2>
-          <Reveal delay={0.15}>
+          <Reveal delay={0.12}>
             <p className="section-intro">
-              Mehendi by Trisha is based in <strong>Maslandapur</strong>, and Trisha travels to your home or venue for{' '}
-              <a href="#services">bridal and custom mehendi</a> across <strong>Barasat</strong>,{' '}
-              <strong>Madhyamgram</strong>, <strong>Kolkata</strong> and the wider <strong>North 24 Parganas</strong>{' '}
-              district of West Bengal.
+              Based in <mark className="hl">Maslandapur</mark>, Trisha travels to your{' '}
+              <mark className="hl">home or venue</mark> for <a href="#services">bridal and custom mehendi</a> across North
+              24 Parganas, Nadia and Kolkata. Tap a town to check your date on WhatsApp.
             </p>
             <p className="areas__bn" lang="bn">
-              মছলন্দপুর থেকে বারাসাত, মধ্যমগ্রাম, কলকাতা — আপনার বিয়ে ও প্রতিটি অনুষ্ঠানে সুন্দর মেহেন্দি।
-            </p>
-            <p className="areas__links">
-              <a href="#gallery">See the bridal portfolio</a>
-              <span aria-hidden="true">·</span>
-              <a href="#faq">Travel &amp; booking FAQs</a>
+              মছলন্দপুর থেকে বারাসাত, বনগাঁ, রানাঘাট, কল্যাণী, শান্তিপুর, কলকাতা — আপনার বিয়ে ও অনুষ্ঠানে মেহেন্দি।
             </p>
           </Reveal>
-          <Vine className="areas__vine" />
         </div>
 
-        <ul className="areas__list">
-          {AREAS.map((a, i) => (
-            <m.li
-              key={a.name}
-              className={`area ${a.primary ? 'area--primary' : ''}`}
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
+        <div className="areas__districts">
+          {DISTRICTS.map((d, i) => (
+            <m.div
+              key={d.name}
+              className="district"
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '0px 0px -8% 0px' }}
-              transition={{ duration: 0.8, ease, delay: i * 0.07 }}
+              transition={{ duration: 0.7, ease, delay: i * 0.08 }}
             >
-              <span className="area__pin" aria-hidden="true"><MapPin size={18} strokeWidth={1.5} /></span>
-              <div className="area__body">
-                <h3>
-                  {a.name} <span lang="bn">{a.bn}</span>
-                  {a.primary && <em className="area__badge">Home base</em>}
-                </h3>
-                <p>{a.note}</p>
-              </div>
-              <a
-                className="area__cta"
-                href={areaEnquiry(a.name)}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Enquire on WhatsApp about mehendi in ${a.name}`}
-              >
-                <ArrowUpRight size={18} strokeWidth={1.5} />
-              </a>
-            </m.li>
+              <h3 className="district__name">
+                {d.name} <span lang="bn">{d.bn}</span>
+              </h3>
+              <ul className="district__areas">
+                {d.areas.map((a) => (
+                  <li key={a.name}>
+                    <a
+                      className={`area-chip ${a.primary ? 'area-chip--primary' : ''}`}
+                      href={areaEnquiry(a.name)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Enquire on WhatsApp about mehendi in ${a.name}${a.primary ? ' (home base)' : ''}`}
+                    >
+                      {a.primary ? <Home size={14} strokeWidth={1.8} aria-hidden="true" /> : <MapPin size={14} strokeWidth={1.6} aria-hidden="true" />}
+                      <span>{a.name}</span>
+                      <span className="area-chip__bn" lang="bn">{a.bn}</span>
+                      {a.primary && <em className="area-chip__badge">Home base</em>}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              {d.note && <p className="district__note">{d.note}</p>}
+            </m.div>
           ))}
-        </ul>
+        </div>
       </div>
     </section>
   )

@@ -63,9 +63,10 @@ export function serviceEnquiry(service: string): string {
 }
 
 export const NAV_LINKS = [
-  { id: 'home', label: 'Home' },
   { id: 'about', label: 'About' },
   { id: 'services', label: 'Services' },
   { id: 'gallery', label: 'Gallery' },
+  { id: 'areas', label: 'Areas' },
+  { id: 'faq', label: 'FAQ' },
   { id: 'contact', label: 'Contact' },
 ] as const
