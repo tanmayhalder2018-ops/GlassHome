@@ -63,9 +63,9 @@ function buildMessage(v: Values) {
 }
 
 const STEPS = [
-  { icon: <Send size={18} strokeWidth={1.5} />, title: 'Share your details', text: 'Fill in the form — it prepares a WhatsApp message for you.' },
-  { icon: <MessageCircle size={18} strokeWidth={1.5} />, title: 'Chat with Trisha', text: 'Trisha replies with her availability, design ideas and pricing.' },
-  { icon: <CalendarHeart size={18} strokeWidth={1.5} />, title: 'Confirm your date', text: 'Your booking is confirmed once you both agree on the details.' },
+  { icon: <Send size={18} strokeWidth={1.5} />, title: 'Share details', text: 'The form prepares a WhatsApp message.' },
+  { icon: <MessageCircle size={18} strokeWidth={1.5} />, title: 'Chat with Trisha', text: 'Availability, ideas & pricing.' },
+  { icon: <CalendarHeart size={18} strokeWidth={1.5} />, title: 'Confirm your date', text: 'Booked once you both agree.' },
 ]
 
 export function BookingForm() {
@@ -119,7 +119,8 @@ export function BookingForm() {
           </h2>
           <Reveal delay={0.15}>
             <p className="section-intro">
-              Planning your wedding, engagement, or special celebration? Get in touch with Trisha to discuss your custom mehendi requirements.
+              Planning your wedding, engagement, or special celebration? Get in touch with Trisha to discuss your{' '}
+              <mark className="hl">custom mehendi requirements</mark>.
             </p>
           </Reveal>
           <ol className="booking__steps">
@@ -184,7 +185,7 @@ export function BookingForm() {
                   </label>
                   <label className="field">
                     <span className="field__label">Event Location <i aria-hidden="true">*</i></span>
-                    <input {...field('location')} type="text" autoComplete="address-level2" required placeholder="e.g. Maslandapur, Barasat, Kolkata" />
+                    <input {...field('location')} type="text" autoComplete="address-level2" required placeholder="e.g. Maslandapur, Barasat, Ranaghat" />
                     {err('location')}
                   </label>
                   <label className="field">

@@ -18,7 +18,7 @@ export function Wordmark({ light = false }: { light?: boolean }) {
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
-  const [active, setActive] = useState('home')
+  const [active, setActive] = useState('')
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -29,10 +29,10 @@ export function Navbar() {
 
   // Highlight the section currently in view.
   useEffect(() => {
-    const ids = [...NAV_LINKS.map((l) => l.id), 'booking']
+    const ids = ['home', ...NAV_LINKS.map((l) => l.id), 'booking']
     const io = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) if (e.isIntersecting) setActive(e.target.id === 'booking' ? 'contact' : e.target.id)
+        for (const e of entries) if (e.isIntersecting) setActive(e.target.id === 'home' || e.target.id === 'booking' ? '' : e.target.id)
       },
       { rootMargin: '-45% 0px -50% 0px' },
     )
