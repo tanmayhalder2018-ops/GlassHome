@@ -104,6 +104,7 @@ function makeServices(props) {
     console,
   };
   ss.getId = () => 'sheet1';
+  ss.getSpreadsheetTimeZone = () => 'Asia/Kolkata';
   return { services, sheets, ss, cache, calendarEvents, props, backups };
 }
 

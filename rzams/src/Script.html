@@ -240,7 +240,9 @@
     }).join('') : '<tr><td colspan="7">No fee records found</td></tr>';
   }
 
+  var feeRequestId = '';
   function openFeeModal(studentId) {
+    feeRequestId = 'legacy-' + Date.now() + '-' + Math.random().toString(36).slice(2); // a double tap cannot save twice
     lockBody();
     document.getElementById('feeForm').reset();
     document.getElementById('feeDate').value = todayIso(); document.getElementById('feeDate').max = todayIso();
@@ -303,11 +305,13 @@
     if (!sel.length) { toast('Tick at least one month', 'error'); return; }
     if (paid <= 0) { toast('Enter the amount being paid', 'error'); return; }
     if (paid > total) { toast('Amount is more than the ticked months. Tick another month.', 'error'); return; }
-    showLoading();
-    authedCall('collectFee', { studentId: id, months: sel.map(function (m) { return m.month; }), paid: paid, paymentDate: document.getElementById('feeDate').value }).then(function (res) {
-      hideLoading(); resultToast(res);
+    var btn = document.querySelector('#feeForm button[type=submit]');
+    if (btn.disabled) return;
+    btn.disabled = true; showLoading();
+    authedCall('collectFee', { studentId: id, months: sel.map(function (m) { return m.month; }), paid: paid, paymentDate: document.getElementById('feeDate').value, requestId: feeRequestId }).then(function (res) {
+      btn.disabled = false; hideLoading(); resultToast(res);
       if (res.success) { closeFeeModal(); loadFeesRecords(); }
-    }).catch(function () {});
+    }).catch(function () { btn.disabled = false; });
   });
 
   // ---------------- STUDIO ----------------

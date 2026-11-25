@@ -346,3 +346,60 @@ test('settings: default billing must be Postpaid or Prepaid; student billing kep
   const again = ok('students.save', { id: s.id, name: s.name, phone: s.phone, fee: s.fee, status: 'Active' }).student;
   assert.equal(again.billing, 'Postpaid');
 });
+
+test('clean-up: preview, backup, old months removed, duplicates removed or voided, ledger stays right', () => {
+  const { ok, call, env } = setup({ runSetup: false });
+  // an exact duplicate October row for STU005, as the old screen could create
+  env.sheets['Fees'].rows.push(['STU005', 'Dipa Test', 'October 2026', 600, 400, 200, new Date(2026, 9, 8)]);
+  ok('system.setup', { skipBackup: true });
+  const legacy = ok('app.bootstrap', {}).payments.filter((p) => p.status === 'Legacy');
+  assert.equal(legacy.filter((p) => p.studentId === 'STU005').length, 1, 'setup imports one payment per student+month');
+  // the same payment entered twice from two forms a few minutes apart
+  ok('payments.record', { studentId: 'STU002', months: [CUR], amount: 300, method: 'Cash', requestId: 'a1' });
+  ok('payments.record', { studentId: 'STU002', months: [CUR], amount: 300, method: 'Cash', requestId: 'a2' });
+  // a genuine second payment on another day is NOT a duplicate
+  assert.match(call('system.cleanupPreview', { beforeMonth: 'Oct' }).error, /October 2026/);
+  const pre = ok('system.cleanupPreview', { beforeMonth: 'October 2026' });
+  assert.equal(pre.beforeMonth, 'October 2026');
+  assert.equal(pre.oldFeeRows, 4, 'July, "September" (no year), August, July');
+  assert.equal(pre.oldFeesNoYear.length, 1);
+  assert.equal(pre.oldPayments, 4);
+  assert.equal(pre.duplicateFeeRows.length, 1);
+  assert.equal(pre.duplicatePayments.length, 1);
+  assert.equal(pre.duplicatePayments[0].studentId, 'STU002');
+  assert.equal(env.backups.length, 0, 'preview changes nothing');
+  const r = ok('system.cleanup', { beforeMonth: 'October 2026' });
+  assert.ok(r.backup && /before clean-up/.test(r.backup.name));
+  assert.equal(r.feeRowsDeleted, 5);
+  assert.equal(r.paymentsDeleted, 4);
+  assert.equal(r.paymentsVoided, 1);
+  const b = ok('app.bootstrap', {});
+  assert.deepEqual(b.fees.map((f) => `${f.studentId}|${f.month}|${f.paid}`).sort(), [`STU002|${CUR}|300`, 'STU005|October 2026|400']);
+  assert.equal(b.payments.filter((p) => p.status !== 'Void').length, 2, 'October import + one STU002 payment');
+  assert.equal(b.payments.find((p) => p.status === 'Void').voidReason, 'Duplicate entry (clean-up)');
+  assert.equal(b.pending.find((p) => p.studentId === 'STU002' && p.month === CUR).due, 400);
+  // running it again finds nothing
+  const again = ok('system.cleanupPreview', { beforeMonth: 'October 2026' });
+  assert.equal(again.oldFeeRows + again.oldPayments + again.duplicateFeeRows.length + again.duplicatePayments.length, 0);
+  assert.equal(call('system.cleanup', { beforeMonth: 'October 2026' }).data.nothingToDo, true);
+});
+
+test('clean-up: differing repeated rows are only listed for review', () => {
+  const { ok, env } = setup({ runSetup: false });
+  env.sheets['Fees'].rows.push(['STU005', 'Dipa Test', 'October 2026', 600, 100, 500, new Date(2026, 9, 9)]);
+  const pre = ok('system.cleanupPreview', { beforeMonth: 'October 2026' });
+  assert.equal(pre.duplicateFeeRows.length, 0);
+  assert.equal(pre.needsReview.length, 1);
+  assert.equal(pre.needsReview[0].length, 2);
+});
+
+test('legacy screen: the same request id never records a payment twice', () => {
+  const { env } = setup();
+  const tok = env.ctx.loginUser('test-pass').token;
+  const a = JSON.parse(JSON.stringify(env.ctx.collectFee(tok, { studentId: 'STU002', months: [CUR], paid: 200, requestId: 'tap-1' })));
+  const b = JSON.parse(JSON.stringify(env.ctx.collectFee(tok, { studentId: 'STU002', months: [CUR], paid: 200, requestId: 'tap-1' })));
+  assert.equal(a.success && b.success, true);
+  assert.equal(a.invoiceNo, b.invoiceNo);
+  const row = env.sheets['Fees'].rows.find((r) => r[0] === 'STU002');
+  assert.equal(row[4], 200, 'paid once');
+});

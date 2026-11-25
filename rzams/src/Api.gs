@@ -14,7 +14,7 @@
  * =====================================================================
  */
 
-var API_VERSION = '3.0.0';
+var API_VERSION = '3.1.0';
 var PASSWORD_ITERATIONS = 300;
 var ROLE_ADMIN = 'Admin', ROLE_STAFF = 'Staff';
 
@@ -163,6 +163,8 @@ var API_ROUTES = {
   'system.backup': [function () { return backupNow_('manual'); }, ROLE_ADMIN, true],
   'system.setupPreview': [setupPreview_, ROLE_ADMIN],
   'system.setup': [apiRunSetup_, ROLE_ADMIN, true],
+  'system.cleanupPreview': [function (d) { return cleanupPlan_(d).summary; }, ROLE_ADMIN],
+  'system.cleanup': [apiRunCleanup_, ROLE_ADMIN, true],
   'system.health': [function () { return { version: API_VERSION, time: new Date().toISOString() }; }, null]
 };
 
@@ -980,7 +982,8 @@ function buildSetupPlan_() {
     if (target) links.push({ row: s._row, id: s.id, courseName: target.name }); else unmatched[s.instrument] = (unmatched[s.instrument] || 0) + 1;
   });
   var imported = {}; readTable_('payments').rows.forEach(function (p) { if (p.requestId) imported[p.requestId] = 1; });
-  var legacy = readTable_('fees').rows.filter(function (f) { return money_(f.paid) > 0 && !imported['legacy:' + f.studentId + ':' + f.month]; })
+  // one import per student+month, even if the Fees tab has duplicate rows for it
+  var legacy = readTable_('fees').rows.filter(function (f) { var k = 'legacy:' + f.studentId + ':' + f.month; if (money_(f.paid) <= 0 || imported[k]) return false; imported[k] = 1; return true; })
     .map(function (f) { return { studentId: f.studentId, studentName: f.studentName, month: f.month, amount: money_(f.paid), fee: money_(f.amount), due: money_(f.due), date: f.paymentDate }; });
   return { courses: toCreate, links: links, unmatched: unmatched, legacy: legacy };
 }
@@ -1027,4 +1030,101 @@ function apiRunSetup_(d) {
   setSetting_('setupDoneAt', nowIso_());
   audit_('system.setup', 'system', '', { coursesCreated: plan.courses.length, studentsLinked: plan.links.length, legacyImported: n });
   return { backup: backup, coursesCreated: plan.courses.map(function (c) { return c.name; }), studentsLinked: plan.links.length, legacyImported: n, unmatchedInstruments: plan.unmatched };
+}
+
+// ---------------------------------------------------------------------
+// Fee record clean-up (admin, previewed, backed up first)
+// ---------------------------------------------------------------------
+function feeRowSummary_(f) { return { row: f._row, studentId: f.studentId, studentName: f.studentName, month: f.month, amount: money_(f.amount), paid: money_(f.paid), due: money_(f.due), paymentDate: f.paymentDate }; }
+function payRowSummary_(p) { return { row: p._row, id: p.id, invoiceNo: p.invoiceNo, date: p.date, studentId: p.studentId, studentName: p.studentName, amount: money_(p.amount), months: p.months, method: p.method, status: p.status }; }
+function minutesBetween_(a, b) { var x = Date.parse(a), y = Date.parse(b); return isNaN(x) || isNaN(y) ? 1e9 : Math.abs(x - y) / 60000; }
+
+/**
+ * Works out what the clean-up would do, without changing anything:
+ *  1. fee rows for months before the cut-off (or with no year, e.g. "September") -> delete
+ *     payments whose months are all before the cut-off -> delete
+ *  2. fee rows repeated for the same student + month with the same amount and paid -> keep the first, delete the rest
+ *     repeated rows that differ -> listed for a manual check, not changed
+ *  3. payments recorded twice (same request, or same student/date/amount/months within 15 minutes) -> keep the first;
+ *     the extra one is voided (its fee allocation is reversed) or, for imported rows, deleted
+ */
+function cleanupPlan_(d) {
+  var cutoff = monthIndex_((d && d.beforeMonth) || getSettings_().feeStartMonth);
+  if (cutoff < 0) throw apiError_('Cut-off month must look like "October 2026".');
+  var fees = readTable_('fees').rows, pays = readTable_('payments').rows;
+  var oldFees = fees.filter(function (f) { var mi = monthIndex_(f.month); return mi < 0 || mi < cutoff; });
+  var oldPays = pays.filter(function (p) {
+    var ms = String(p.months || '').split(',').map(function (x) { return monthIndex_(x.trim()); });
+    return ms.length && ms.every(function (mi) { return mi < 0 || mi < cutoff; });
+  });
+  var oldFeeRows = {}; oldFees.forEach(function (f) { oldFeeRows[f._row] = 1; });
+  var oldPayRows = {}; oldPays.forEach(function (p) { oldPayRows[p._row] = 1; });
+
+  var groups = {}, dupFees = [], reviewFees = [];
+  fees.forEach(function (f) { if (oldFeeRows[f._row]) return; var k = f.studentId + '|' + f.month; (groups[k] = groups[k] || []).push(f); });
+  Object.keys(groups).forEach(function (k) {
+    var g = groups[k]; if (g.length < 2) return;
+    var same = g.every(function (f) { return money_(f.amount) === money_(g[0].amount) && money_(f.paid) === money_(g[0].paid); });
+    if (same) g.slice(1).forEach(function (f) { dupFees.push(f); });
+    else reviewFees.push(g.map(feeRowSummary_));
+  });
+
+  var dupPays = [], seenReq = {}, live = pays.filter(function (p) { return !oldPayRows[p._row] && p.status !== 'Void'; });
+  live.forEach(function (p) {
+    if (p.requestId) { if (seenReq[p.requestId]) { dupPays.push(p); return; } seenReq[p.requestId] = p; }
+  });
+  var taken = {}; dupPays.forEach(function (p) { taken[p._row] = 1; });
+  live.forEach(function (p, i) {
+    if (taken[p._row] || p.status === 'Legacy') return;
+    for (var j = 0; j < i; j++) {
+      var q = live[j];
+      if (taken[q._row] || q.status === 'Legacy') continue;
+      if (q.studentId === p.studentId && q.date === p.date && money_(q.amount) === money_(p.amount) && q.months === p.months && minutesBetween_(q.createdAt, p.createdAt) <= 15) { dupPays.push(p); taken[p._row] = 1; break; }
+    }
+  });
+
+  return {
+    cutoff: cutoff, oldFees: oldFees, oldPays: oldPays, dupFees: dupFees, dupPays: dupPays,
+    summary: {
+      beforeMonth: monthLabel_(cutoff),
+      oldFeeRows: oldFees.length, oldFeesPaid: oldFees.reduce(function (a, f) { return a + money_(f.paid); }, 0),
+      oldFeesNoYear: oldFees.filter(function (f) { return monthIndex_(f.month) < 0; }).map(feeRowSummary_),
+      oldPayments: oldPays.length, oldPaymentsAmount: oldPays.reduce(function (a, p) { return a + money_(p.amount); }, 0),
+      duplicateFeeRows: dupFees.map(feeRowSummary_), duplicatePayments: dupPays.map(payRowSummary_), needsReview: reviewFees
+    }
+  };
+}
+
+function apiRunCleanup_(d) {
+  var plan = cleanupPlan_(d), s = plan.summary;
+  if (!s.oldFeeRows && !s.oldPayments && !s.duplicateFeeRows.length && !s.duplicatePayments.length) return { summary: s, backup: null, nothingToDo: true };
+  var backup = backupNow_('before clean-up');
+  // extra payments: void (reverses their fee allocation) unless imported; imported duplicates are deleted
+  var voided = 0, payDelete = {};
+  plan.oldPays.forEach(function (p) { payDelete[p._row] = 1; });
+  plan.dupPays.forEach(function (p) {
+    if (p.status === 'Legacy' || !p.allocation || !p.allocation.length) { payDelete[p._row] = 1; return; }
+    (p.allocation || []).forEach(function (a) {
+      var rec = readTable_('fees').rows.filter(function (f) { return String(f.studentId) === String(p.studentId) && f.month === a.month; })[0];
+      if (!rec) return;
+      var paid = money_(Math.max(money_(rec.paid) - money_(a.amount), 0));
+      writeRow_('fees', { paid: paid, due: money_(money_(rec.amount) - paid) }, rec._row);
+    });
+    var row = findBy_('payments', 'id', p.id);
+    writeRow_('payments', { status: 'Void', voidReason: 'Duplicate entry (clean-up)' }, row._row);
+    voided++;
+  });
+  var feeDelete = {};
+  plan.oldFees.forEach(function (f) { feeDelete[f._row] = 1; });
+  plan.dupFees.forEach(function (f) { feeDelete[f._row] = 1; });
+  // delete from the bottom up so row numbers stay valid
+  var feeSheet = readTable_('fees').sheet, paySheet = readTable_('payments').sheet;
+  Object.keys(feeDelete).map(Number).sort(function (a, b) { return b - a; }).forEach(function (r) { feeSheet.deleteRow(r); });
+  Object.keys(payDelete).map(Number).sort(function (a, b) { return b - a; }).forEach(function (r) { paySheet.deleteRow(r); });
+  REQ_.tables = {};
+  audit_('system.cleanup', 'fees', s.beforeMonth, { feeRowsDeleted: Object.keys(feeDelete).length, paymentsDeleted: Object.keys(payDelete).length, paymentsVoided: voided, backup: backup && backup.name });
+  return {
+    backup: backup, feeRowsDeleted: Object.keys(feeDelete).length, paymentsDeleted: Object.keys(payDelete).length, paymentsVoided: voided, needsReview: s.needsReview,
+    replace: { fees: rowsOf_('fees'), payments: rowsOf_('payments'), pending: pendingFor_(rowsOf_('students'), rowsOf_('fees')) }
+  };
 }

@@ -158,6 +158,7 @@ function Data() {
         <p className="mb-3 text-[12.5px] muted">Safe to run again: it only adds what is missing.</p>
         <Button variant={d.meta.setupDone ? 'secondary' : 'primary'} loading={busy === 'setup'} onClick={setup} data-testid="run-setup">{d.meta.setupDone ? 'Run again' : 'Back up and run setup'}</Button>
       </Card>
+      <Cleanup />
       <Card title="Server">
         <p className="text-[13px] muted">API version {d.meta.version}. Fee tracking from {d.meta.feeStartMonth}.</p>
       </Card>
@@ -175,3 +176,44 @@ function Appearance() {
   );
 }
 
+
+type Row = { row: number; studentId: string; studentName: string; month?: string; months?: string; amount: number; paid?: number; date?: string; paymentDate?: string; invoiceNo?: string; method?: string; status?: string };
+interface CleanupSummary { beforeMonth: string; oldFeeRows: number; oldFeesPaid: number; oldFeesNoYear: Row[]; oldPayments: number; oldPaymentsAmount: number; duplicateFeeRows: Row[]; duplicatePayments: Row[]; needsReview: Row[][] }
+
+function Cleanup() {
+  const d = useData(); const { mutate } = useApp(); const { toast, confirm } = useUi();
+  const [month, setMonth] = useState(d.settings.feeStartMonth || 'October 2026');
+  const [p, setP] = useState<CleanupSummary | null>(null); const [busy, setBusy] = useState(''); const [err, setErr] = useState(''); const [done, setDone] = useState('');
+  const preview = async () => { setBusy('preview'); setErr(''); setDone(''); try { setP(await api<CleanupSummary>('system.cleanupPreview', { beforeMonth: month })); } catch (e) { setErr((e as Error).message); setP(null); } finally { setBusy(''); } };
+  const run = async () => {
+    if (!p) return;
+    if (!(await confirm({ title: 'Delete these fee records?', text: `A backup copy of the whole spreadsheet is saved to Google Drive first. Then ${p.oldFeeRows} fee row(s) before ${p.beforeMonth}, ${p.oldPayments} old payment(s), ${p.duplicateFeeRows.length} duplicate fee row(s) are deleted and ${p.duplicatePayments.length} duplicate payment(s) are removed. This cannot be undone in the app (only from the backup).`, confirmLabel: 'Back up and delete', danger: true, requireText: 'DELETE' }))) return;
+    setBusy('run'); setErr('');
+    try {
+      const r = await mutate<{ feeRowsDeleted: number; paymentsDeleted: number; paymentsVoided: number; backup: { name: string } | null; nothingToDo?: boolean }>('system.cleanup', { beforeMonth: month });
+      const msg = r.nothingToDo ? 'Nothing to clean up.' : `Done. Backup “${r.backup?.name}”. Deleted ${r.feeRowsDeleted} fee row(s) and ${r.paymentsDeleted} payment(s); voided ${r.paymentsVoided} duplicate payment(s).`;
+      setDone(msg); toast(r.nothingToDo ? msg : 'Fee records cleaned up'); setP(null);
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(''); }
+  };
+  const nothing = p && !p.oldFeeRows && !p.oldPayments && !p.duplicateFeeRows.length && !p.duplicatePayments.length;
+  return (
+    <Card title="Clean up fee records">
+      <p className="mb-3 text-[13.5px] muted">Removes fee records and payments from before a month, and duplicate entries. Shows exactly what will change first, and saves a full backup to Google Drive before deleting anything.</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Keep fee records from"><Input value={month} onChange={(e) => { setMonth(e.target.value); setP(null); }} className="w-[180px]" data-testid="cleanup-month" /></Field>
+        <Button loading={busy === 'preview'} onClick={preview} data-testid="cleanup-preview">Check</Button>
+      </div>
+      {err && <p role="alert" className="mt-3 text-[13px] text-red-600">{err}</p>}
+      {done && <p className="mt-3 rounded-[10px] bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300" data-testid="cleanup-done">{done}</p>}
+      {p && (
+        <div className="mt-4 space-y-3 text-[13.5px]" data-testid="cleanup-summary">
+          <p>Before <b>{p.beforeMonth}</b>: <b>{p.oldFeeRows}</b> fee row(s) (₹{p.oldFeesPaid.toLocaleString('en-IN')} paid) and <b>{p.oldPayments}</b> payment(s) (₹{p.oldPaymentsAmount.toLocaleString('en-IN')}) will be deleted.{p.oldFeesNoYear.length > 0 && <> Includes {p.oldFeesNoYear.length} row(s) with no year ({p.oldFeesNoYear.map((r) => `${r.studentId} “${r.month}”`).join(', ')}).</>}</p>
+          <div><p className="font-medium">Duplicate fee rows to delete: {p.duplicateFeeRows.length}</p>{p.duplicateFeeRows.map((r) => <p key={r.row} className="text-[12.5px] muted">Row {r.row}: {r.studentName} ({r.studentId}) · {r.month} · fee ₹{r.amount} · paid ₹{r.paid}</p>)}</div>
+          <div><p className="font-medium">Duplicate payments to remove: {p.duplicatePayments.length}</p>{p.duplicatePayments.map((r) => <p key={r.row} className="text-[12.5px] muted">{r.invoiceNo || 'Imported'} · {r.studentName} ({r.studentId}) · {r.date} · ₹{r.amount} · {r.months} — {r.status === 'Legacy' ? 'deleted' : 'voided, fee reversed'}</p>)}</div>
+          {p.needsReview.length > 0 && <div className="rounded-[10px] bg-amber-50 px-3 py-2 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"><p className="font-medium">Not changed – please check in the Fees tab ({p.needsReview.length}):</p>{p.needsReview.map((g, i) => <p key={i} className="text-[12.5px]">{g[0].studentName} ({g[0].studentId}) · {g[0].month}: {g.map((r) => `row ${r.row} paid ₹${r.paid}`).join(' / ')}</p>)}</div>}
+          {nothing ? <p className="muted">Nothing to clean up.</p> : <Button variant="danger" loading={busy === 'run'} onClick={run} data-testid="cleanup-run">Back up and delete</Button>}
+        </div>
+      )}
+    </Card>
+  );
+}

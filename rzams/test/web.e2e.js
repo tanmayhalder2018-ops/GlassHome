@@ -232,6 +232,23 @@ async function run(label, ctxOpts) {
   await noSideScroll('reports');
   step('reports: payments report + CSV export, outstanding dues report');
 
+  // ---- clean-up of old / duplicate fee records
+  await go('Settings');
+  await page.getByRole('tab', { name: 'Data & backup' }).click();
+  await page.getByTestId('cleanup-month').fill('October 2026');
+  await page.getByTestId('cleanup-preview').click();
+  await page.getByTestId('cleanup-summary').waitFor();
+  assert.match(await page.getByTestId('cleanup-summary').textContent(), /Before October 2026: 4 fee row\(s\).*and 4 payment\(s\)/);
+  const backupsBefore = env.backups.length;
+  await page.getByTestId('cleanup-run').click();
+  await modal().getByLabel('Type "DELETE" to confirm').fill('DELETE');
+  await page.getByTestId('confirm-yes').click();
+  await page.getByTestId('cleanup-done').waitFor();
+  assert.match(await page.getByTestId('cleanup-done').textContent(), /Deleted 4 fee row\(s\) and 4 payment\(s\)/);
+  assert.equal(env.backups.length, backupsBefore + 1, 'backup before deleting');
+  assert.ok(!env.sheets['Fees'].rows.slice(1).some((r) => /July|August|^September $/.test(String(r[2]))), 'old months gone');
+  step('clean-up: preview → type DELETE → backup → 4 old fee rows and 4 old payments removed');
+
   // ---- settings, users, staff role
   await go('Settings');
   await page.getByLabel('Contact number').fill('9876543210');

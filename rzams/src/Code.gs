@@ -78,7 +78,14 @@ function getSheet_(name) {
 // ---------------------------------------------------------------------
 // Helpers: dates, months, locking, validation
 // ---------------------------------------------------------------------
-function tz_() { return Session.getScriptTimeZone() || 'Asia/Kolkata'; }
+// Dates in cells are stored in the spreadsheet's time zone, so read and write them in that zone
+// (using the script's zone could shift "1 October" to "30 September" and create duplicate fee rows).
+var TZ_CACHE_ = null;
+function tz_() {
+  if (TZ_CACHE_) return TZ_CACHE_;
+  try { TZ_CACHE_ = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(); } catch (e) {}
+  return TZ_CACHE_ || Session.getScriptTimeZone() || 'Asia/Kolkata';
+}
 
 function pad2_(n) { return ('0' + n).slice(-2); }
 
